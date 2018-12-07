@@ -1,4 +1,5 @@
 #include "mq_utils.h"
+#include "shm_utils.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -15,14 +16,14 @@
 
 int main(int argv, char **args)
 {   
-    printf("Okay, I'm player %s\n", args[1]);
     key_t key = 2137 + atoi(args[1]);
     int mq = mq_open(key);
-    printf("The queue nr %s is open; its id is %d.\n", args[1], mq);
     message msg;
-    strcpy(msg.text, "Battle!\0");
+    msg.add_info = 1;
+    msg.enemy_units = -1;
+    msg.winner = -1;
+    msg.your_units = -1;
     mq_send(mq, &msg, 1);
-    printf("Message sent.\n");
     
     sleep(30);
     exit(0);

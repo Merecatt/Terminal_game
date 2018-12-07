@@ -15,29 +15,33 @@
 
 typedef struct {
     /* Message struct */
-    char text[MSG_SIZE];
-    int unit_type;
-    int number;
-    int action;
+    int winner; //1 if you won, 0 if you lost
+    int your_units; //number of your units
+    int enemy_units; //number of your enemy's units
+    int add_info; //additional information; 1 means initial message
 }message;
 
 struct mq_buf {
-    /* Redefined msgbuf stuct */
-    long mtype;
+    /* Redefined msgbuf stuct 
+    Types:
+    7 - game status (player info)
+    1 - init message
+    3 - battle info */
+    long mtype; 
     message msg;
 };
 
 
 void display_message(message *msg){
-    printf("----- Message -----\ntext: %s\n", msg->text);
-    printf("unit type: %d\nnumber: %d\n", msg->unit_type, msg->number);
-    printf("action: %d\n", msg->action);
+    printf("----- Message -----\nwinner: %d\n", msg->winner);
+    printf("your units: %d\nenemy units: %d\n", msg->your_units, msg->enemy_units);
+    printf("additional information: %d\n", msg->add_info);
 }
 
 
 int mq_create(){
-    /* Wrapper for creating message queue function. 
-    Returns key value of queue or -1 in case of error. */
+    /* Wrapper function for creating message queue. 
+    Returns identifier of queue or -1 in case of error. */
     int qid;
     if ((qid = msgget(IPC_PRIVATE, IPC_FLAGS)) == -1){
         perror("mq - creating message queue");
@@ -47,8 +51,8 @@ int mq_create(){
 
 
 int mq_open(key_t key){
-    /* Wrapper for opening (or creating) message queue function. 
-    Returns key value of queue or -1 in case of error. */
+    /* Wrapper function for opening (or creating) message queue. 
+    Returns identifier of queue or -1 in case of error. */
     int qid;
     if ((qid = msgget(key, IPC_FLAGS)) == -1){
         perror("mq - opening/creating message queue");
@@ -58,7 +62,7 @@ int mq_open(key_t key){
 
 
 int mq_send(int qid, message *my_msg, long type){
-    /* Wrapper for sending message to queue function. 
+    /* Wrapper function for sending message to queue. 
     Returns 0 on success and -1 in case of error. */
     int result, length;
     length = sizeof(message);
@@ -75,7 +79,7 @@ int mq_send(int qid, message *my_msg, long type){
 
 
 int mq_receive(int qid, message *buf, long type){ 
-    /* Wrapper for receiving message from  queue function.
+    /* Wrapper function for receiving message from  queue.
     Returns the size of received message on success 
     and -1 in case of error. */
     int result;
@@ -90,7 +94,7 @@ int mq_receive(int qid, message *buf, long type){
 
 
 int mq_remove(int qid){
-    /* Wrapper for removing message queue from system. */
+    /* Wrapper function for removing message queue from system. */
     int result;
     if ((result = msgctl(qid, IPC_RMID, 0)) == -1){
         perror("mq - removing message queue from system");
