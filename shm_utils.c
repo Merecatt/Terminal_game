@@ -16,9 +16,10 @@
 typedef struct {
     /* Player information struct. */
     int n;
-    int light_infantry;
-    int heavy_infantry;
-    int cavalry;
+    int military[3]; 
+    /* 0 - light_infantry;
+    1 - heavy_infantry;
+    2 - cavalry;        */
     int workers;
     int resources_increase; //resources increase speed per 1 second
     int resources;
@@ -34,8 +35,8 @@ struct mq_player_buf {
 
 void display_player(player *play){
     printf("\n----- Player %d -----\n", play->n);
-    printf("Light infantry: %d\nHeavy infantry: %d\n", play->light_infantry, play->heavy_infantry);
-    printf("Cavalry: %d\nWorkers: %d\nResources: %d\n", play->cavalry, play->workers, play->resources);
+    printf("Light infantry: %d\nHeavy infantry: %d\n", play->military[0], play->military[1]);
+    printf("Cavalry: %d\nWorkers: %d\nResources: %d\n", play->military[2], play->workers, play->resources);
     printf("Resource increase speed: %d\nNumber of victories: %d\n", play->resources_increase, play->victories);
 }
 
