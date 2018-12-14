@@ -41,11 +41,11 @@ void display_player(player *play){
 }
 
 
-int shm_create(){
+int shm_create(size_t size){
     /* Wrapper function for creating shared memory segment (without key). 
     Returns identifier of shared memory segment or -1 in case of error. */
     int shmid;
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(player), SHM_FLAGS)) == -1){
+    if ((shmid = shmget(IPC_PRIVATE, size, SHM_FLAGS)) == -1){
         perror("shm - creating shared memory segment");
     }
     return shmid;

@@ -6,3 +6,5 @@ server
 shm_utils
 
 todo\.txt
+
+\.vscode/settings\.json
