@@ -15,55 +15,6 @@
 #include "sem_utils.h"
 
 
-void mq_init(int n, int *pid, int *mq, int all_ready, int sem){
-    /* Function initializing connection with client processes.
-    Creates new process and message queue to deal with one player.
-    Returns pid of the new process.
-    @n - process number: {0, 1, 2}
-    @pid - new pid variable
-    @mq - message queue id  
-    @all_ready - shm segment address with variable all_ready
-    @sem - semaphore for all_ready */
-    
-    if ((*pid = fork()) == -1){
-        perror("init - fork function");
-        exit(-1); // am I sure it's right?
-    }
-    if (*pid == 0){ // child process
-        /* initialize message queue and connection */
-        *mq = mq_open(2137 + n);
-        message msg;
-        mq_receive(*mq, &msg, 1); // wait for a message from player
-        printf("Connection with player %d established.\n", n);
-        display_message(&msg);
-
-        /* send info through shm that player is ready */
-        int *my_all_ready = shm_attach(all_ready);
-        sem_p(sem);
-        (*my_all_ready)++; // CRITICAL SECTION
-        sem_v(sem);
-        shm_detach(my_all_ready);
-
-        /* temporary instructions not to make a mess */
-        mq_remove(*mq); // do it later
-    }
-}
-
-
-void shm_players_init (player *array[]){
-    for (int i = 0; i < 3; i++){
-        array[i]->n = i+1;
-        array[i]->military[0] = 0;
-        array[i]->military[1] = 0;
-        array[i]->military[2] = 0;
-        array[i]->workers = 0;
-        array[i]->resources_increase = 50;
-        array[i]->resources = 300;
-        array[i]->victories = 0;
-    }
-}
-
-
 int main()
 {   
     /* initialize semaphores for players' structures */
@@ -114,11 +65,9 @@ int main()
 
     /* connect with clients */
     mq_init(0, &pid[0], &mq[0], shm_all_ready, sem_all_ready); // get player 0
-    sleep(1);
     if (pid[0] != 0){ // the main process
         mq_init(1, &pid[1], &mq[1], shm_all_ready, sem_all_ready); // get player 1
     }
-    sleep(1);
     if (pid[0] != 0 && pid[1] != 0){ // the main process
         mq_init(2, &pid[2], &mq[2], shm_all_ready, sem_all_ready); // get player 2
     }

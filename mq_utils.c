@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include "shm_utils.h"
+#include "sem_utils.h"
 
 #define IPC_FLAGS (IPC_CREAT | 0640)
 #define MSG_SIZE 12
@@ -100,4 +102,39 @@ int mq_remove(int qid){
         perror("mq - removing message queue from system");
     }
     return result;
+}
+
+
+void mq_init(int n, int *pid, int *mq, int all_ready, int sem){
+    /* Function initializing connection with client processes.
+    Creates new process and message queue to deal with one player.
+    Returns pid of the new process.
+    @n - process number: {0, 1, 2}
+    @pid - new pid variable
+    @mq - message queue id  
+    @all_ready - shm segment address with variable all_ready
+    @sem - semaphore for all_ready */
+    
+    if ((*pid = fork()) == -1){
+        perror("init - fork function");
+        exit(-1);
+    }
+    if (*pid == 0){ // child process
+        /* initialize message queue and connection */
+        *mq = mq_open(2137 + n);
+        message msg;
+        mq_receive(*mq, &msg, 1); // wait for a message from player
+        printf("Connection with player %d established.\n", n);
+        display_message(&msg);
+
+        /* send info through shm that player is ready */
+        int *my_all_ready = shm_attach(all_ready);
+        sem_p(sem);
+        (*my_all_ready)++; // CRITICAL SECTION
+        sem_v(sem);
+        shm_detach(my_all_ready);
+
+        /* temporary instructions not to make a mess */
+        mq_remove(*mq); // do it later
+    }
 }

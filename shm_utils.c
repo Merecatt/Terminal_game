@@ -94,6 +94,20 @@ int shm_detach(void *addr){
 }
 
 
+void shm_players_init (player *array[]){
+    for (int i = 0; i < 3; i++){
+        array[i]->n = i+1;
+        array[i]->military[0] = 0;
+        array[i]->military[1] = 0;
+        array[i]->military[2] = 0;
+        array[i]->workers = 0;
+        array[i]->resources_increase = 50;
+        array[i]->resources = 300;
+        array[i]->victories = 0;
+    }
+}
+
+
 int mq_send_status(int qid, player *my_msg){
     /* Wrapper function for sending player info to queue. 
     Returns 0 on success and -1 in case of error. 
