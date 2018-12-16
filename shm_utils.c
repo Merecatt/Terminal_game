@@ -16,10 +16,7 @@
 typedef struct {
     /* Player information struct. */
     int n;
-    int military[3]; 
-    /* 0 - light_infantry;
-    1 - heavy_infantry;
-    2 - cavalry;        */
+    int military[3]; // 0 - light infantry, 1 - heavy infantry, 2 - cavalry
     int workers;
     int resources_increase; //resources increase speed per 1 second
     int resources;
@@ -127,7 +124,7 @@ int mq_send_status(int qid, player *my_msg){
 
 
 int mq_receive_status(int qid, player *buf){ 
-    /* Wrapper function for receiving player info from  queue.
+    /* Wrapper function for receiving player info from queue.
     Returns the size of received message on success 
     and -1 in case of error. 
     Player info (game status) has message type 7. */
@@ -135,6 +132,22 @@ int mq_receive_status(int qid, player *buf){
     struct mq_player_buf tmp;
     struct mq_player_buf *buf_ptr = &tmp;
     if ((result = msgrcv(qid, buf_ptr, sizeof(struct mq_player_buf), 7, 0)) == -1){
+        perror("mq - receiving player info");
+    }
+    *buf = buf_ptr->play;
+    return result;
+}
+
+int mq_receive_status2(int qid, player *buf, int flags){ 
+    /* Wrapper function for receiving player info from queue.
+    Has additional flags parameter.
+    Returns the size of received message on success 
+    and -1 in case of error. 
+    Player info (game status) has message type 7. */
+    int result;
+    struct mq_player_buf tmp;
+    struct mq_player_buf *buf_ptr = &tmp;
+    if ((result = msgrcv(qid, buf_ptr, sizeof(struct mq_player_buf), 7, flags)) == -1){
         perror("mq - receiving player info");
     }
     *buf = buf_ptr->play;
