@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "shm_utils.h"
 #include "sem_utils.h"
 
@@ -95,7 +96,9 @@ int mq_receive(int qid, message *buf, long type){
     struct mq_buf tmp;
     struct mq_buf *buf_ptr = &tmp;
     if ((result = msgrcv(qid, buf_ptr, sizeof(struct mq_buf), type, 0)) == -1){
-        perror("mq - receiving message");
+        if (errno != ENOMSG){
+            perror("mq - receiving message");
+        }
     }
     *buf = buf_ptr->msg;
     return result;
@@ -111,7 +114,9 @@ int mq_receive2(int qid, message *buf, long type, int flags){
     struct mq_buf tmp;
     struct mq_buf *buf_ptr = &tmp;
     if ((result = msgrcv(qid, buf_ptr, sizeof(struct mq_buf), type, flags)) == -1){
-        perror("mq - receiving message");
+        if (errno != ENOMSG){
+            perror("mq - receiving message");
+        }
     }
     *buf = buf_ptr->msg;
     return result;
