@@ -37,6 +37,34 @@ void display_info_curses (int lines, int cols, player *play){
     refresh();  
 }
 
+void display_unit_info (int lines, int cols){
+    mvprintw(6, (cols - 21)/2, "----- Unit info -----");
+    mvprintw(7, 19, "Price");
+    mvprintw(7, 27, "Attack");
+    mvprintw(7, 38, "Defense");
+    mvprintw(7, 48, "Production time");
+    mvprintw(8, 1, "Light infantry:");
+    mvprintw(9, 1, "Heavy infantry:");
+    mvprintw(10, 1, "Cavalry:");
+    mvprintw(11, 1, "Workers:");
+    mvprintw(8, 19, "100");
+    mvprintw(9, 19, "250");
+    mvprintw(10, 19, "550");
+    mvprintw(11, 19, "150");
+    mvprintw(8, 27, "1");
+    mvprintw(9, 27, "1.5");
+    mvprintw(10, 27, "3.5");
+    mvprintw(11, 27, "0");
+    mvprintw(8, 38, "1.2");
+    mvprintw(9, 38, "3");
+    mvprintw(10, 38, "1.2");
+    mvprintw(11, 38, "0");
+    mvprintw(8, 48, "2s");
+    mvprintw(9, 48, "3s");
+    mvprintw(10, 48, "5s");
+    mvprintw(11, 48, "2s");
+}
+
 int main(int argv, char **args)
 {   
     /* curses */
@@ -56,14 +84,14 @@ int main(int argv, char **args)
     player temp;
 
     initialize_curses(&lines, &cols);
-    
+    display_unit_info(lines, cols);
     
     while (msg.add_info != 2){ //there's no 'end game' signal
         mq_receive2(mq, &msg, 3, IPC_NOWAIT); // check for general messages (type 3)
         if ((mq_receive_status2(mq, &temp, IPC_NOWAIT)) != -1){ // check for player struct messages (type 7)
             me = temp; // don't touch 'me', if there are no messages
-        } 
-        display_info_curses(lines, cols, &me);
+            display_info_curses(lines, cols, &me);
+        }    
     }
 
 

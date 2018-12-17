@@ -28,6 +28,8 @@ typedef struct {
     3 - print text field; */
     char text[20];
     char action;
+    char unit_type;
+    int unit_number;
 }message;
 
 struct mq_buf {
@@ -46,6 +48,7 @@ void display_message(message *msg){
     printf("your units: %d\nenemy units: %d\n", msg->your_units, msg->enemy_units);
     printf("additional information: %d\n", msg->add_info);
     printf("text: %s\naction: %c\n" , msg->text, msg->action);
+    printf("unit type: %c\nunit number: %d\n", msg->unit_type, msg->unit_number);
 }
 
 
