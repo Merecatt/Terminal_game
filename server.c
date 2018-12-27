@@ -24,6 +24,35 @@ void update_resources(int mq, player *play, int semaphore){
     sem_v(semaphore);
 }
 
+void remove_trash(shm players[], shm_int all_ready, shm_int end_game, int mq0, int mq[], int mq_input[]){
+        /* Function removing created IPCs from the system */
+        /* players' shared memory and semaphores */
+        printf("Removing players' structures.\n");
+        for (int i = 0; i < 3; i++){
+            shm_detach(players[i].addr);
+            shm_remove(players[i].id);
+            sem_remove(players[i].semaphore);
+        }
+
+        /* all_ready and end_game shared memory and semaphores */
+        printf("Removing all_ready.\n");
+        shm_detach(all_ready.addr);
+        shm_remove(all_ready.id);
+        sem_remove(all_ready.semaphore);
+        printf("Removing end_game.\n");
+        shm_detach(end_game.addr);
+        shm_remove(end_game.id);
+        sem_remove(end_game.semaphore);
+
+        /* message queues */
+        printf("Removing message queues.\n");
+        mq_remove(mq0);
+        for (int i = 0; i < 3; i++){
+            mq_remove(mq[i]);
+            mq_remove(mq_input[i]);
+        }
+    }
+
 
 int main()
 {   
@@ -102,13 +131,6 @@ int main()
         sleep(1);
     }
 
-
-    /* remove shared memory segment which was only needed to connect all players. */
-    shm_detach(all_ready.addr);
-    shm_remove(all_ready.id);
-    /* and the semaphore too */
-    sem_remove(all_ready.semaphore);
-
     printf("\nLet's start the game!\n");
     
     /* send initial message to child processes to start the game */
@@ -129,20 +151,31 @@ int main()
                     while (*(end_game.addr) != 1){
                         update_resources(mq[i], players[i].addr, players[i].semaphore);
                     }
+                    exit(0);
                 }
         }
     }
 
     if (getpid() == ppid){ 
+        /* 
         while (1){ // main server process sleeps until the end of the game
             sleep(1);
         }
+        */
+        sleep(20);
         /* delete all the trash from system */
-        //TODO
+        *(end_game.addr) = 1;
+        printf("Waiting for children to end.\n");
+        for (int i = 0; i < 3; i++){
+            wait(NULL);
+        }
+        remove_trash(players, all_ready, end_game, mq0, mq, mq_input);
+        printf("Trash removed successfully.\n");
     }
+    
 
     
 
-    sleep(5);
+    //sleep(5);
     exit(0);
 }
