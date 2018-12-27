@@ -27,51 +27,45 @@ void update_resources(int mq, player *play, int semaphore){
 
 int main()
 {   
-    /* initialize semaphores for players' structures */
-    int semaphores[3];
+    /* initialize players' structures with semaphores and shared memory */
+    shm players[3];
     
     for (int i = 0; i < 3; i++){
-        semaphores[i] = sem_create(2137+i); //semget(SEM_KEY + i, 1, IPC_CREAT|0640);
-        sem_initialize(semaphores[i]);
+        players[i].semaphore = sem_create(2137+i);      // create semaphores
+        sem_initialize(players[i].semaphore);           // initialize semaphores
+        players[i].id = shm_create(sizeof(player));     // create memory segment for a player
+        players[i].addr = shm_attach(players[i].id);    // attach memory segment
+        shm_players_init(players[i].addr, i);           // initialize players' structures
     }
 
     
-    int pid[3], mq[3]; // pid[3] - child processes pid's; // mq[3] - player-server message queues' id
+    int pid[3];      // pid[3] - child processes pid's; 
+    int mq[3];       // mq[3] - player-server message queues' id
     int ppid, mq0; 
     ppid = getpid(); // main server process' pid
 
 
-    /* *parent_all_ready == 3 means all players are connected */
-    int shm_all_ready = shm_create(sizeof(int)); 
-    int *parent_all_ready = shm_attach(shm_all_ready);
-    *parent_all_ready = 0; // initial number of ready players
-    /* all_ready - semaphore */
-    int sem_all_ready;
-    sem_all_ready = sem_create2();
-    sem_initialize(sem_all_ready);
+    /* initialize all_ready and its semaphore */
+    shm_int all_ready;
+    all_ready.id = shm_create(sizeof(int));
+    all_ready.addr = shm_attach(all_ready.id);
+    *(all_ready.addr) = 0;  // initial number of ready players; start the game when reaches 3
+    all_ready.semaphore = sem_create2();
+    sem_initialize(all_ready.semaphore);
 
 
-    /* end_game == 1 means there is a winner and it's time to finish */
-    int shm_end_game = shm_create(sizeof(int));
-    int *end_game = shm_attach(shm_end_game);
-    *end_game = 0; 
-    /* end_game - semaphore */
-    int sem_end_game;
-    sem_end_game = sem_create2();
-    sem_initialize(sem_end_game);
+    /* initialize end_game and its semaphore */
+    shm_int end_game;
+    end_game.id = shm_create(sizeof(int));
+    end_game.addr = shm_attach(end_game.id);
+    *(end_game.addr) = 0;  // when it reaches 1, it's time to finish
+    end_game.semaphore = sem_create2();
+    sem_initialize(end_game.semaphore);
+
     
     /* initialize message queue to communicate with child processes */
     mq0 = mq_create();
 
-    /* initialize players' shared memory */
-    int shm_players[3];
-    player *players_array[3];
-
-    for (int i = 0; i < 3; i++){
-        shm_players[i] = shm_create(sizeof(player));
-        players_array[i] = shm_attach(shm_players[i]);
-    }
-    shm_players_init(players_array);
 
     /* initialize message queues and processes for players' input */
     int mq_input[3];
@@ -81,16 +75,16 @@ int main()
     }
 
     /* connect with clients */
-    mq_init(0, &pid[0], &mq[0], shm_all_ready, sem_all_ready); // get player 0
-    if (pid[0] != 0){ // the main process
-        mq_init(1, &pid[1], &mq[1], shm_all_ready, sem_all_ready); // get player 1
+    mq_init(0, &pid[0], &mq[0], all_ready); // get player 0
+    if (getpid() == ppid){ // the main process
+        mq_init(1, &pid[1], &mq[1], all_ready); // get player 1
     }
-    if (pid[0] != 0 && pid[1] != 0){ // the main process
-        mq_init(2, &pid[2], &mq[2], shm_all_ready, sem_all_ready); // get player 2
+    if (getpid() == ppid){ // the main process
+        mq_init(2, &pid[2], &mq[2], all_ready); // get player 2
     }
     
     /* fork every server's child to get processes dedicated for user's input */
-    /*
+    /* 
     for (int i = 0; i < 3; i++){
         if (pid[i] == 0){ // if it's proper child process
             if ((pid_input[i] = fork()) == -1) {
@@ -101,16 +95,16 @@ int main()
 
     /* start the game */
     if (getpid() == ppid){ // parent process
-    while (*parent_all_ready != 3){ // wait to start the game
+    while (*(all_ready.addr) != 3){ // wait to start the game
         sleep(1);
     }
 
 
     /* remove shared memory segment which was only needed to connect all players. */
-    shm_detach(parent_all_ready);
-    shm_remove(shm_all_ready);
-    /* and the semaphores too */
-    sem_remove(sem_all_ready);
+    shm_detach(all_ready.addr);
+    shm_remove(all_ready.id);
+    /* and the semaphore too */
+    sem_remove(all_ready.semaphore);
 
     printf("\nLet's start the game!\n");
     
@@ -129,8 +123,8 @@ int main()
         if (pid[i] == 0){
             mq_receive(mq0, &start_game, 1); // wait for the initial message
                 if (start_game.add_info == 1){ // if you got the initial message
-                    while (*end_game != 1){
-                        update_resources(mq[i], players_array[i], semaphores[i]);
+                    while (*(end_game.addr) != 1){
+                        update_resources(mq[i], players[i].addr, players[i].semaphore);
                     }
                 }
         }

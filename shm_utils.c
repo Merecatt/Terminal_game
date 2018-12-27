@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/shm.h>
+#include <errno.h>
 
 #define SHM_FLAGS (IPC_CREAT | 0640)
 
@@ -24,7 +25,7 @@ typedef struct {
 }player;
 
 struct mq_player_buf {
-    /* Redefined msgbuf stuct */
+    /* Redefined msgbuf struct */
     long mtype;
     player play;
 };
@@ -91,17 +92,16 @@ int shm_detach(void *addr){
 }
 
 
-void shm_players_init (player *array[]){
-    for (int i = 0; i < 3; i++){
-        array[i]->n = i+1;
-        array[i]->military[0] = 0;
-        array[i]->military[1] = 0;
-        array[i]->military[2] = 0;
-        array[i]->workers = 0;
-        array[i]->resources_increase = 50;
-        array[i]->resources = 300;
-        array[i]->victories = 0;
-    }
+void shm_players_init (player *play, int i){
+        play->n = i+1;
+        play->military[0] = 0;
+        play->military[1] = 0;
+        play->military[2] = 0;
+        play->workers = 0;
+        play->resources_increase = 50;
+        play->resources = 300;
+        play->victories = 0;
+    
 }
 
 

@@ -43,6 +43,19 @@ struct mq_buf {
 };
 
 
+typedef struct {
+    int id;
+    player *addr;
+    int semaphore;
+}shm;
+
+typedef struct {
+    int id;
+    int *addr;
+    int semaphore;
+}shm_int;
+
+
 void display_message(message *msg){
     printf("----- Message -----\nwinner: %d\n", msg->winner);
     printf("your units: %d\nenemy units: %d\n", msg->your_units, msg->enemy_units);
@@ -136,15 +149,14 @@ int mq_remove(int qid){
 }
 
 
-void mq_init(int n, int *pid, int *mq, int all_ready, int sem){
+void mq_init(int n, int *pid, int *mq, shm_int all_ready){
     /* Function initializing connection with client processes.
     Creates new process and message queue to deal with one player.
     Returns pid of the new process.
     @n - process number: {0, 1, 2}
     @pid - new pid variable
     @mq - message queue id  
-    @all_ready - shm segment address with variable all_ready
-    @sem - semaphore for all_ready */
+    @all_ready - shm segment address with variable all_ready and its semaphore */
     
     if ((*pid = fork()) == -1){
         perror("init - fork function");
@@ -159,10 +171,8 @@ void mq_init(int n, int *pid, int *mq, int all_ready, int sem){
         display_message(&msg);
 
         /* send info through shm that player is ready */
-        int *my_all_ready = shm_attach(all_ready);
-        sem_p(sem);
-        (*my_all_ready)++; // CRITICAL SECTION
-        sem_v(sem);
-        shm_detach(my_all_ready);
+        sem_p(all_ready.semaphore);
+        (*(all_ready.addr))++; // CRITICAL SECTION
+        sem_v(all_ready.semaphore);
     }
 }
