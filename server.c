@@ -39,9 +39,8 @@ int main()
     }
 
     
-    int pid[3];      // pid[3] - child processes pid's; 
-    int mq[3];       // mq[3] - player-server message queues' id
-    int ppid, mq0; 
+    
+    int ppid; 
     ppid = getpid(); // main server process' pid
 
 
@@ -64,23 +63,27 @@ int main()
 
     
     /* initialize message queue to communicate with child processes */
+    int mq0;
     mq0 = mq_create();
 
 
-    /* initialize message queues and processes for players' input */
-    int mq_input[3];
-    int pid_input[3];
+    /* initialize message queues and processes for communication with players */
+    int pid[3];          // server processes dedicated for players
+    int mq[3];           // server->player message queues' id
+    int pid_input[3];    // dedicated for getting players' input processes
+    int mq_input[3];     // message queues for getting players' input
     for (int i = 0; i < 3; i++){
+        mq[i] = mq_open(2137 + i);
         mq_input[i] = mq_open(2140+i);
     }
 
     /* connect with clients */
-    mq_init(0, &pid[0], &mq[0], all_ready); // get player 0
-    if (getpid() == ppid){ // the main process
-        mq_init(1, &pid[1], &mq[1], all_ready); // get player 1
+    mq_init(0, &pid[0], mq[0], all_ready); // get player 0
+    if (getpid() == ppid){ // only the main process calls fork
+        mq_init(1, &pid[1], mq[1], all_ready); // get player 1
     }
-    if (getpid() == ppid){ // the main process
-        mq_init(2, &pid[2], &mq[2], all_ready); // get player 2
+    if (getpid() == ppid){ // only the main process calls fork
+        mq_init(2, &pid[2], mq[2], all_ready); // get player 2
     }
     
     /* fork every server's child to get processes dedicated for user's input */

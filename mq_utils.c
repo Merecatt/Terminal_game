@@ -149,10 +149,10 @@ int mq_remove(int qid){
 }
 
 
-void mq_init(int n, int *pid, int *mq, shm_int all_ready){
+void mq_init(int n, int *pid, int mq, shm_int all_ready){
     /* Function initializing connection with client processes.
-    Creates new process and message queue to deal with one player.
-    Returns pid of the new process.
+    Creates new process to deal with one player and waits for a message from this player.
+    Returns pid of the new process through *pid pointer.
     @n - process number: {0, 1, 2}
     @pid - new pid variable
     @mq - message queue id  
@@ -163,10 +163,9 @@ void mq_init(int n, int *pid, int *mq, shm_int all_ready){
         exit(-1);
     }
     if (*pid == 0){ // child process
-        /* initialize message queue and connection */
-        *mq = mq_open(2137 + n);
+        /* initialize message queue connection */
         message msg;
-        mq_receive(*mq, &msg, 1); // wait for a message from player
+        mq_receive(mq, &msg, 1); // wait for a message from player
         printf("Connection with player %d established.\n", n);
         display_message(&msg);
 
