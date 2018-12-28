@@ -3,7 +3,7 @@
 #include "shm_utils.c"
 
 void display_player(player *play);
-int shm_create();
+int shm_create(size_t size);
 int shm_create2(key_t key);
 void *shm_attach(int shmid);
 int shm_remove(int shmid);
