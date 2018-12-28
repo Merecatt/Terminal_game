@@ -53,6 +53,17 @@ void remove_trash(shm players[], shm_int all_ready, shm_int end_game, int mq0, i
         }
     }
 
+int winner(shm players[]){
+    /* Function returning id of the winner (in {0, 1, 2} notation). 
+    If there is no winner, returns -1. */
+    for (int i = 0; i < 3; i++){
+        player *ptr = players[i].addr; // pointer to player's structure
+        if ((*ptr).victories == 5){
+            return i;
+        }
+    }
+    return -1;
+}
 
 int main()
 {   
@@ -151,6 +162,22 @@ int main()
                     while (*(end_game.addr) != 1){
                         update_resources(mq[i], players[i].addr, players[i].semaphore);
                     }
+                    int who_won = winner(players);
+                    message msg_end_game;
+                    msg_end_game.add_info = 2; // set info that the game is over
+                    /* set text field so that is says who the winner is */
+                    if (who_won == -1){
+                        strcpy(msg_end_game.text, "Nobody won.");
+                    }
+                    else {
+                        char str[20], temp[10];
+                        strcpy(str, "Player ");
+                        sprintf(temp, "%d", who_won);
+                        strcat(str, temp);
+                        strcat(str, " won.");
+                        strcpy(msg_end_game.text, str);
+                    }
+                    mq_send(mq[i], &msg_end_game, 3);
                     exit(0);
                 }
         }

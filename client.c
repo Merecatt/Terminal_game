@@ -94,10 +94,11 @@ int main(int argv, char **args)
         }    
     }
 
-
-
     /* end of the game */
-    //TODO
+    clear();
+    mvprintw(lines/2-1, (cols-13)/2, "Game is over.");
+    mvprintw(lines/2, (cols-sizeof(msg.text))/2, msg.text);
+
 
     mvaddstr(lines, 0, "Press any key to quit");
     refresh();
