@@ -77,7 +77,7 @@ int main(int argv, char **args)
     
     /* open queue to send input to server */
     key_t key2 = 2140 + atoi(args[1]);
-    int input = mq_open(key2);
+    int mq_input = mq_open(key2);
 
     player me; // structure with current information
     mq_receive_status(mq, &me);
@@ -85,14 +85,51 @@ int main(int argv, char **args)
 
     initialize_curses(&lines, &cols);
     display_unit_info(lines, cols);
+    display_info_curses(lines, cols, &me);
     
+    timeout(0); // set non-blocking read
+    char input;
+    int input_i;
+    message input_msg;
+
     while (msg.add_info != 2){ //there's no 'end game' signal
         mq_receive2(mq, &msg, 3, IPC_NOWAIT); // check for general messages (type 3)
         if ((mq_receive_status2(mq, &temp, IPC_NOWAIT)) != -1){ // check for player struct messages (type 7)
             me = temp; // don't touch 'me', if there are no messages
             display_info_curses(lines, cols, &me);
-        }    
+        }
+        input = getch();    
+        if (input != ERR){ // if a char is caught
+            mvprintw(lines-3, 0, "Got input.");
+            switch (input) {
+                case 't':
+                    input_msg.action = input;
+                    mvprintw(lines-4, 0, "%c", input);
+                    while ((input_i = getch()) == ERR){};
+                    input_i = input_i - '0';
+                    mvprintw(lines-4, 2, "%d", input_i);
+                    input_msg.unit_type = input_i;
+                    while ((input_i = getch()) == ERR){};
+                    input_i = input_i - '0';
+                    mvprintw(lines-4, 4, "%d" ,input_i);
+                    input_msg.unit_number[input_msg.unit_type] = input_i;
+                    for (int i = 0; i < 4; i++){
+                        if (i != input_msg.unit_type){
+                            input_msg.unit_number[i] = 0;
+
+                        }
+                    }
+                    
+                    mq_send(mq_input, &input_msg, 3);
+                    break;
+                default:
+                    mvprintw(lines-2, 0, "Got nothing valid.");
+                    break;
+            }
+        }
     }
+
+    timeout(-1); // read is again a blocking function
 
     /* end of the game */
     clear();

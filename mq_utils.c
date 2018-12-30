@@ -26,10 +26,10 @@ typedef struct {
     1 - initial message; 
     2 - end of the game;
     3 - print text field; */
-    char text[20];
+    char text[30];
     char action;
-    char unit_type;
-    int unit_number;
+    int unit_type;
+    int unit_number[4];
 }message;
 
 struct mq_buf {
@@ -61,7 +61,9 @@ void display_message(message *msg){
     printf("your units: %d\nenemy units: %d\n", msg->your_units, msg->enemy_units);
     printf("additional information: %d\n", msg->add_info);
     printf("text: %s\naction: %c\n" , msg->text, msg->action);
-    printf("unit type: %c\nunit number: %d\n", msg->unit_type, msg->unit_number);
+    printf("unit type: %d\nunit number[0]: %d\n", msg->unit_type, msg->unit_number[0]);
+    printf("unit number[1]: %d\nunit number[2]: %d", msg->unit_number[1], msg->unit_number[2]);
+    printf("unit number[3]: %d", msg->unit_number[3]);
 }
 
 
@@ -167,7 +169,7 @@ void mq_init(int n, int *pid, int mq, shm_int all_ready){
         message msg;
         mq_receive(mq, &msg, 1); // wait for a message from player
         printf("Connection with player %d established.\n", n);
-        display_message(&msg);
+        //display_message(&msg);
 
         /* send info through shm that player is ready */
         sem_p(all_ready.semaphore);

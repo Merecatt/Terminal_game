@@ -14,6 +14,18 @@
 #include "shm_utils.h"
 #include "sem_utils.h"
 
+typedef struct {
+    int price[4];
+    double attack[4];
+    double defense[4];
+    int production_time[4];
+}units_stats;
+
+units_stats G_units_stats = {{100, 250, 550, 150},
+                             {1, 1.5, 3.5, 0}, 
+                             {1.2, 3, 1.2, 0},
+                             {2, 3, 5, 2}};
+
 
 void update_resources(int mq, player *play, int semaphore){
     printf("Updating resources.\n");
@@ -64,6 +76,54 @@ int winner(shm players[]){
     }
     return -1;
 }
+
+void train_units(int units[], shm play, int mq_output){
+    // make a queue for training processes
+    int cost = 0;
+    for (int i = 0; i < 4; i++){
+        cost += G_units_stats.price[i] * units[i];
+    }
+    printf("Cost: %d\n", cost);
+    sem_p(play.semaphore);
+    int p_resources = (*(play.addr)).resources;
+    if (p_resources < cost){
+        sem_v(play.semaphore);
+        message msg;
+        msg.add_info = 3; // tell client to print the message
+        strcpy(msg.text, "Not enough resources.");
+        mq_send(mq_output, &msg, 3);
+    }
+    else {
+        sem_v(play.semaphore);
+        // TODO - fork and train
+        for (int i = 0; i < 4; i++){
+            printf("Training %d units of %d type.\n", units[i], i);
+            // fork
+            // add and send info to player after every addition
+            // exit 
+            // ignore children's end in main input process not to leave zombies
+        }
+    }
+}
+
+void get_input(int mq, shm play, int mq_output){
+    int status;
+    message msg;
+    status = mq_receive2(mq, &msg, 0, IPC_NOWAIT); // MUST BE NOWAIT so the process can end in case of end of the game
+    if (status != -1){
+        printf("msg.action: %c\n", msg.action);
+        switch(msg.action) {
+            case 't':
+                printf("Get_input: got message 't'.\n");
+                train_units(msg.unit_number, play, mq_output);
+                break;
+            default:
+                printf("Player sent illegal message.\n");
+        }
+    }
+}
+
+
 
 int main()
 {   
@@ -125,16 +185,15 @@ int main()
     if (getpid() == ppid){ // only the main process calls fork
         mq_init(2, &pid[2], mq[2], all_ready); // get player 2
     }
-    
-    /* fork every server's child to get processes dedicated for user's input */
-    /* 
+
+    /* fork to get processes dedicated for user's input */
     for (int i = 0; i < 3; i++){
-        if (pid[i] == 0){ // if it's proper child process
+        if (getpid() == ppid){
             if ((pid_input[i] = fork()) == -1) {
                 perror("preparing to get input - fork");
             }
         }
-    } */
+    }
 
     /* start the game */
     if (getpid() == ppid){ // parent process
@@ -146,9 +205,9 @@ int main()
     
     /* send initial message to child processes to start the game */
     message init_message = {-1, -1, -1, 1, "", ' '};
-    for (int i = 0; i < 3; i++) //send three messages for three players
+    for (int i = 0; i < 6; i++) //send six messages for two processes of every player
         mq_send(mq0, &init_message, 1);
-    }
+    } //every process should wait for its dedicated message!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     message start_game;
 
@@ -178,8 +237,25 @@ int main()
                         strcpy(msg_end_game.text, str);
                     }
                     mq_send(mq[i], &msg_end_game, 3);
+                    printf("Output process %d finishes.\n", i);
                     exit(0);
                 }
+        }
+    }
+
+    /* Get user's input until the end of the game */
+    for (int i = 0; i < 3; i++) {
+        if (pid_input[i] == 0){
+            // ignore childrens' end
+            mq_receive(mq0, &start_game, 1); // wait for the initial message
+            if (start_game.add_info == 1){ // if you got the initial message
+                while (*(end_game.addr) != 1){
+                    // TODO
+                    get_input(mq_input[i], players[i], mq[i]);
+                }
+                printf("Input process %d finishes.\n", i);
+                exit(0);
+            }
         }
     }
 
@@ -193,7 +269,7 @@ int main()
         /* delete all the trash from system */
         *(end_game.addr) = 1;
         printf("Waiting for children to end.\n");
-        for (int i = 0; i < 3; i++){
+        for (int i = 0; i < 6; i++){
             wait(NULL);
         }
         remove_trash(players, all_ready, end_game, mq0, mq, mq_input);
