@@ -93,6 +93,7 @@ void add_unit(shm *player, int unit){
             break;
         case 3:
             (*(player->addr)).workers++;
+            (*(player->addr)).resources_increase += 5;
             break;
         default:
             printf("Error while training.\n");
@@ -206,6 +207,7 @@ void fight(shm attacker, shm defender, int units[], int mq[]){
         }
         else {
             printf("Player %d defends with %d defense against %d attack", n_defender, defense_points, attack_points);
+
         }
 
         exit(0);
