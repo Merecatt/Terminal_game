@@ -134,6 +134,7 @@ void display_attack (WINDOW *win, int lines, int cols, int answer){
 
 void attack(WINDOW *win, int lines, int cols, message *msg){
     wclear(win);
+    msg->action = 'a';
     int temp;
     mvwprintw(win, 0, 1, "Choose the number of units to send:");
     mvwprintw(win, 1, 1, "Light infantry: ");
@@ -177,6 +178,7 @@ void main_menu(WINDOW *win, char answer, int lines, int cols, message *msg, int 
         case 'a':
             // display dialogue, get number of units and player to attack number
             attack(win, lines, cols, msg);
+            mq_send(qid, msg, 3);
             // it has to be sent to the server and check if everything's okay
             break;
         case 't':
@@ -214,6 +216,12 @@ void clear_message(message *msg){
     }
 }
 
+void display_server_message (WINDOW *win, message *msg){
+    wclear(win);
+    mvwprintw(win, 0, 0, msg->text);
+    wrefresh(win);
+    clear_message(msg);
+}
 
 int main(int argv, char **args)
 {   
@@ -236,7 +244,7 @@ int main(int argv, char **args)
     player me; // structure with current information
     mq_receive_status(mq, &me);
     player temp;
-    //message msg_temp;
+    message msg_temp;
 
     
 
@@ -263,7 +271,12 @@ int main(int argv, char **args)
 
     while (msg.add_info != 2){ //there's no 'end game' signal
         //display_unit_info(lines, cols);
-        mq_receive2(mq, &msg, 3, IPC_NOWAIT); // check for general messages (type 3)
+        if ((mq_receive2(mq, &msg_temp, 3, IPC_NOWAIT)) != -1){ // check for general messages (type 3)
+            msg = msg_temp;
+            if (msg.add_info == 3){
+                display_server_message(window3, &msg);
+            }
+        } 
         if ((mq_receive_status2(mq, &temp, IPC_NOWAIT)) != -1){ // check for player struct messages (type 7)
             me = temp; // don't touch 'me', if there are no messages
             display_info_curses(window1, lines, cols, &me);
@@ -277,6 +290,7 @@ int main(int argv, char **args)
         display_info_curses(window1, lines, cols, &me);
         display_unit_info(window1, lines, cols);
         clear_message(&input_msg);
+        
         
         //wrefresh(window3);
         
