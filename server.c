@@ -77,9 +77,33 @@ int winner(shm players[]){
     return -1;
 }
 
+void add_unit(shm *player, int unit, int cost){
+    sleep(G_units_stats.production_time[unit]);
+    sem_p(player->semaphore);
+    switch(unit){
+        case 0:
+            (*(player->addr)).military[0]++;
+            break;
+        case 1:
+            (*(player->addr)).military[1]++;
+            break;
+        case 2:
+            (*(player->addr)).military[2]++;
+            break;
+        case 3:
+            (*(player->addr)).workers++;
+            break;
+        default:
+            printf("Error while training.\n");
+    }
+    (*(player->addr)).resources -= cost;
+    sem_v(player->semaphore);
+}
+
 void train_units(int units[], shm play, int mq_output){
     // make a queue for training processes
     int cost = 0;
+    int unit;
     for (int i = 0; i < 4; i++){
         cost += G_units_stats.price[i] * units[i];
     }
@@ -95,13 +119,25 @@ void train_units(int units[], shm play, int mq_output){
     }
     else {
         sem_v(play.semaphore);
-        // TODO - fork and train
-        for (int i = 0; i < 4; i++){
-            printf("Training %d units of %d type.\n", units[i], i);
-            // fork
-            // add and send info to player after every addition
-            // exit 
-            // ignore children's end in main input process not to leave zombies
+        if (fork() == 0){
+            for (int i = 0; i < 4; i++){
+                printf("Training %d units of %d type.\n", units[i], i);
+                if (units[i] != 0){
+                    unit = i; // this is the unit to train
+                }
+
+                // add and send info to player after every addition
+                // exit 
+                // ignore children's end in main input process not to leave zombies
+            }
+            while (units[unit] > 0){
+            add_unit(&play, unit, cost);
+            mq_send_status(mq_output, (play.addr));
+            units[unit]--;
+            }
+
+
+            exit(0);
         }
     }
 }
@@ -155,7 +191,7 @@ int main()
 
     /* initialize end_game and its semaphore */
     shm_int end_game;
-    end_game.id = shm_create(sizeof(int));
+    end_game.id = shm_create3(sizeof(int), 1945);
     end_game.addr = shm_attach(end_game.id);
     *(end_game.addr) = 0;  // when it reaches 1, it's time to finish
     end_game.semaphore = sem_create2();
@@ -246,7 +282,7 @@ int main()
     /* Get user's input until the end of the game */
     for (int i = 0; i < 3; i++) {
         if (pid_input[i] == 0){
-            // ignore childrens' end
+            signal(SIGCLD, SIG_IGN); // ignore SIGCLD not to make a zombie
             mq_receive(mq0, &start_game, 1); // wait for the initial message
             if (start_game.add_info == 1){ // if you got the initial message
                 while (*(end_game.addr) != 1){
@@ -265,7 +301,7 @@ int main()
             sleep(1);
         }
         */
-        sleep(20);
+        sleep(40);
         /* delete all the trash from system */
         *(end_game.addr) = 1;
         printf("Waiting for children to end.\n");

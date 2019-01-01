@@ -5,6 +5,7 @@
 void display_player(player *play);
 int shm_create(size_t size);
 int shm_create2(key_t key);
+int shm_create3(size_t size, key_t key);
 void *shm_attach(int shmid);
 int shm_remove(int shmid);
 int shm_detach(void *addr);

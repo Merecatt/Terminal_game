@@ -60,6 +60,15 @@ int shm_create2(key_t key){
     return shm;
 }
 
+int shm_create3(size_t size, key_t key){
+    /* Wrapper function for creating shared memory segment. 
+    Returns  identifier of shared memory segment or -1 in case of error. */
+    int shm;
+    if ((shm = shmget(key, size, SHM_FLAGS)) == -1){
+        perror("shm - creating shared memory segment (with key)");
+    }
+    return shm;
+}
 
 void *shm_attach(int shmid){
     /* Wrapper function for attaching shared memory segment. 
