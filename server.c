@@ -156,6 +156,10 @@ void train_units(int units[], shm play, int mq_output){
                 sem_p(training_in_process.semaphore);
                 *(training_in_process.addr) = 0;
                 sem_v(training_in_process.semaphore);
+                message msg;
+                msg.add_info = 3;
+                strcpy(msg.text, "Training finished.");
+                mq_send(mq_output, &msg, 3);
                 exit(0);
 
             }
