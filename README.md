@@ -7,6 +7,7 @@ gcc client.c -lncurses
 
 
 Run every client with its own parameter from set {0, 1, 2}.
+Game runs properly only if you connect 3 players and don't change default terminal window size.
 
 To train units, press t, then the type of unit to train from set {0, 1, 2, 3}, where:
 0 - light infantry
