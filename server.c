@@ -458,6 +458,7 @@ int main()
         for (int i = 0; i < 6; i++){
             wait(NULL);
         }
+        sleep(1);
         remove_trash(players, all_ready, end_game, mq0, mq, mq_input);
         printf("Trash removed successfully.\n");
     }
