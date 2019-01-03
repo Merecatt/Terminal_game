@@ -247,6 +247,7 @@ void got_input(WINDOW *win2, WINDOW *win3, message *msg, int qid){
         default:
             wclear(win3);
             mvwprintw(win3, 0, 0, "Something need doing?");
+            initialize_answers();
             wrefresh(win3);
     }
 }
