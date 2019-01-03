@@ -197,7 +197,8 @@ void main_menu(WINDOW *win, char answer, int lines, int cols, message *msg, int 
     }
     wrefresh(win);
     sleep(1);
-    display_communication(win, lines, cols);
+    if (answer != 'q')
+        display_communication(win, lines, cols);
     wrefresh(win);
         
     
@@ -223,11 +224,18 @@ void display_server_message (WINDOW *win, message *msg){
     clear_message(msg);
 }
 
+void got_signal(){
+    sem_p(end_game.semaphore);
+    *(end_game.addr) = 1;
+    sem_v(end_game.semaphore);
+}
+
 int main(int argv, char **args)
 {   
     
     end_game.id = shm_create3(sizeof(int), 1945);
     end_game.addr = shm_attach(end_game.id);
+    signal(SIGINT, got_signal);
 
     /* curses */
     int lines, cols;    
@@ -298,6 +306,7 @@ int main(int argv, char **args)
     }
     shm_detach(end_game.addr);
     timeout(-1); // read is again a blocking function
+    sleep(1);
     delwin(window1);
     delwin(window2);
     delwin(window3);

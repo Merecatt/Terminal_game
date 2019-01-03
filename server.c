@@ -27,6 +27,7 @@ units_stats G_units_stats = {{100, 250, 550, 150},
                              {1.2, 3, 1.2, 0},
                              {2, 3, 5, 2}};
 
+int interrupt;
 
 void update_resources(int mq, player *play, int semaphore){
     printf("Updating resources.\n");
@@ -331,10 +332,16 @@ void get_input(int mq, shm play, int mq_output, shm players[], int mqs[], shm_in
     }
 }
 
+void got_signal(){
+    interrupt = 1;
+    printf("Got SIGINT, goodbye cruel world.\n");
+}
 
 
 int main()
 {   
+    interrupt = 0;
+    signal(SIGINT, got_signal);
     /* initialize players' structures with semaphores and shared memory */
     shm players[3];
     
@@ -470,6 +477,12 @@ int main()
     if (getpid() == ppid){ 
         
         while (*(end_game.addr) != 1){ // main server process sleeps until the end of the game
+            if (interrupt == 1){
+                sem_p(end_game.semaphore);
+                *(end_game.addr) = 1;
+                sem_v(end_game.semaphore);
+                sleep(1);
+            }
             sleep(1);
         }
         
