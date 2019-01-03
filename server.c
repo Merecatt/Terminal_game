@@ -177,13 +177,34 @@ int survivors_SASO (int units, double SA, double SO){
     }
 }
 
-
+int are_we_fighting(shm attacker, int units[], message *msg){
+    /* Function checking if number of units sent to fight
+    isn't greater than the number of units possessed by the player.
+    If so, returns -1.
+    If everything is okay, returns 0. */
+    sem_p(attacker.semaphore);
+    for (int i = 0; i < 3; i++){
+        if ((*(attacker.addr)).military[i] < units[i]){
+            msg->add_info = 3;
+            strcpy(msg->text, "Incorrect number of units.");
+            sem_v(attacker.semaphore);
+            return -1;
+        }
+    }
+    sem_v(attacker.semaphore);
+    return 0;
+}
 
 void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
     if (fork() == 0){
         int n_attacker, n_defender;
         n_attacker = (*(attacker.addr)).n - 1;
         n_defender = (*(defender.addr)).n - 1;
+        message msg;
+        if (are_we_fighting(attacker, units, &msg) == -1){
+            mq_send(mq[n_attacker], &msg, 3);
+        }
+        else {
 
         sem_p(attacker.semaphore);
         for (int i = 0; i < 3; i++){
@@ -280,7 +301,7 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
             sem_v(defender.semaphore); 
             
         }
-
+        }
         exit(0);
     }
 }
@@ -459,7 +480,7 @@ int main()
         for (int i = 0; i < 6; i++){
             wait(NULL);
         }
-        sleep(1);
+        sleep(2);
         remove_trash(players, all_ready, end_game, mq0, mq, mq_input);
         printf("Trash removed successfully.\n");
     }
