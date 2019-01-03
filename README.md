@@ -15,6 +15,7 @@ To train units, press t, then the type of unit to train from set {0, 1, 2, 3}, w
 * 1 - heavy infantry
 * 2 - cavalry
 * 3 - workers
+
 and finally type number of units to train.
 
 To attack, press a, then select number of units to send and finally select player to attack from set {1, 2, 3}.
