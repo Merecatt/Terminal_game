@@ -29,7 +29,7 @@ units_stats G_units_stats = {{100, 250, 550, 150},
 
 int interrupt;
 
-shm_int training_in_process;
+shm_int training_in_process[3];
 
 void update_resources(int mq, player *play, int semaphore){
     printf("Updating resources.\n");
@@ -60,9 +60,11 @@ void remove_trash(shm players[], shm_int all_ready, shm_int end_game, int mq0, i
         shm_remove(end_game.id);
         sem_remove(end_game.semaphore);
         printf("Removing training_in_process.\n");
-        shm_detach(training_in_process.addr);
-        shm_remove(training_in_process.id);
-        sem_remove(training_in_process.semaphore);
+        for (int i = 0; i < 3; i++){
+            shm_detach(training_in_process[i].addr);
+            shm_remove(training_in_process[i].id);
+            sem_remove(training_in_process[i].semaphore);
+        }
 
         /* message queues */
         printf("Removing message queues.\n");
@@ -109,6 +111,7 @@ void add_unit(shm *player, int unit){
 }
 
 void train_units(int units[], shm play, int mq_output){
+    int n = (*(play.addr)).n - 1;
     int cost = 0;
     int unit;
     for (int i = 0; i < 4; i++){
@@ -125,18 +128,18 @@ void train_units(int units[], shm play, int mq_output){
         mq_send(mq_output, &msg, 3);
     }
     else {
-        sem_p(training_in_process.semaphore);
-        if (*(training_in_process.addr) == 1) {
+        sem_p(training_in_process[n].semaphore);
+        if (*(training_in_process[n].addr) == 1) {
             sem_v(play.semaphore);
-            sem_v(training_in_process.semaphore);
+            sem_v(training_in_process[n].semaphore);
             message msg;
             msg.add_info = 3;
             strcpy(msg.text, "Previous training not finished.");
             mq_send(mq_output, &msg, 3);
         }
         else {
-            *(training_in_process.addr) = 1;
-            sem_v(training_in_process.semaphore);
+            *(training_in_process[n].addr) = 1;
+            sem_v(training_in_process[n].semaphore);
             (*(play.addr)).resources -= cost;
             sem_v(play.semaphore);
             message msg;
@@ -159,9 +162,9 @@ void train_units(int units[], shm play, int mq_output){
                 mq_send_status(mq_output, (play.addr));
                 units[unit]--;
                 }
-                sem_p(training_in_process.semaphore);
-                *(training_in_process.addr) = 0;
-                sem_v(training_in_process.semaphore);
+                sem_p(training_in_process[n].semaphore);
+                *(training_in_process[n].addr) = 0;
+                sem_v(training_in_process[n].semaphore);
                 msg.add_info = 3;
                 strcpy(msg.text, "Training finished.");
                 mq_send(mq_output, &msg, 3);
@@ -364,11 +367,14 @@ int main()
     signal(SIGINT, got_signal);
 
     /* initialize training_in_process with semaphores */
-    training_in_process.id = shm_create(sizeof(int));
-    training_in_process.addr = shm_attach(training_in_process.id);
-    *(training_in_process.addr) = 0;
-    training_in_process.semaphore = sem_create2();
-    sem_initialize(training_in_process.semaphore);
+    for (int i = 0; i < 3; i++){
+        training_in_process[i].id = shm_create(sizeof(int));
+        training_in_process[i].addr = shm_attach(training_in_process[i].id);
+        *(training_in_process[i].addr) = 0;
+        training_in_process[i].semaphore = sem_create2();
+        sem_initialize(training_in_process[i].semaphore);
+    }
+    
 
     /* initialize players' structures with semaphores and shared memory */
     shm players[3];
