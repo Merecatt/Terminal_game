@@ -109,7 +109,6 @@ void add_unit(shm *player, int unit){
 }
 
 void train_units(int units[], shm play, int mq_output){
-    // make a queue for training processes
     int cost = 0;
     int unit;
     for (int i = 0; i < 4; i++){
@@ -140,14 +139,21 @@ void train_units(int units[], shm play, int mq_output){
             sem_v(training_in_process.semaphore);
             (*(play.addr)).resources -= cost;
             sem_v(play.semaphore);
+            message msg;
+            msg.add_info = 3;
+            char temp[60];
+            
             if (fork() == 0){
                 for (int i = 0; i < 4; i++){
                     printf("Training %d units of %d type.\n", units[i], i);
                     if (units[i] != 0){
                         unit = i; // this is the unit to train
+                        sprintf(temp, "Training %d units of %d type in progress.", units[i], i);
                     }
                 }
-
+                strcpy(msg.text, temp);
+                mq_send(mq_output, &msg, 3);
+                
                 while (units[unit] > 0){
                 add_unit(&play, unit);
                 mq_send_status(mq_output, (play.addr));
@@ -156,7 +162,6 @@ void train_units(int units[], shm play, int mq_output){
                 sem_p(training_in_process.semaphore);
                 *(training_in_process.addr) = 0;
                 sem_v(training_in_process.semaphore);
-                message msg;
                 msg.add_info = 3;
                 strcpy(msg.text, "Training finished.");
                 mq_send(mq_output, &msg, 3);
@@ -168,6 +173,7 @@ void train_units(int units[], shm play, int mq_output){
 }
 
 int myceil(double x){
+    /* implementation of ceiling function */
     int temp;
     temp = (int)x;
     if (x == (double)temp){
@@ -175,7 +181,6 @@ int myceil(double x){
     }
     return temp+1;
 }
-
 
 int survivors_SASO (int units, double SA, double SO){
     //X * (SA/SO)
@@ -190,15 +195,12 @@ int survivors_SASO (int units, double SA, double SO){
     if (units == 0){
         return 0;
     }
-    printf("\nunits: %d\nSA: %f\nSO: %f\n", units, SA, SO);
     factor = (double)SA/(SO+SA);
-    printf("factor: %f\n", factor);
     result = units - myceil(units * factor);
-    printf("survivors: %d\n", result);
     if (result > 0) 
         return result;
     else {
-        printf("error while counting survivors\n");
+        printf("Error while counting survivors\n");
         return 0;
     }
 }
@@ -232,101 +234,97 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
         }
         else {
 
-        sem_p(attacker.semaphore);
-        for (int i = 0; i < 3; i++){
-            (*(attacker.addr)).military[i] -= units[i];
-        }
-        sem_v(attacker.semaphore);
-        // take units from defender too?
-
-        printf("Player %d attacks player %d\n", n_attacker, n_defender);
-        sleep(5);
-        int defenders[3]; // defender's units
-        double attack_points = 0.0, defense_points = 0.0;
-        sem_p(defender.semaphore);
-        for (int i = 0; i < 3; i++){
-            defenders[i] = (*(defender.addr)).military[i];
-        }
-        sem_v(defender.semaphore);
-        for (int i = 0; i < 3; i++){
-            attack_points += G_units_stats.attack[i] * units[i]; // unit attack points * number of units of that type
-        }
-        for (int i = 0; i < 3; i++){
-            defense_points += G_units_stats.defense[i] * defenders[i]; // unit defense points * number of units of that type
-        }
-        
-        
-        int attacker_survivors[3], defender_survivors[3];
-        message msg_a, msg_d;
-
-        if (attack_points > defense_points){ // attack is successful
-            printf("Player %d wins with %f attack against %f defense\n", n_attacker, attack_points, defense_points);
-            char temp[40]; 
-            sprintf(temp, "You won the battle with player %d", n_defender+1);
-            strcpy(msg_a.text, temp);
-            msg_a.add_info = 3;
             sem_p(attacker.semaphore);
             for (int i = 0; i < 3; i++){
-                attacker_survivors[i] = survivors_SASO(units[i], defense_points, attack_points);
-                (*(attacker.addr)).military[i] += attacker_survivors[i];
-                printf("Survivors of player %d type %d: %d\n", n_attacker, i, attacker_survivors[i]);
+                (*(attacker.addr)).military[i] -= units[i];
             }
-            mq_send(mq[n_attacker], &msg_a, 3);
-            display_message(&msg_a);
-            (*(attacker.addr)).victories++;
-            mq_send_status(mq[n_attacker], attacker.addr); 
-            sem_v(attacker.semaphore);
-            
-            sprintf(temp, "You lost the battle with player %d", n_attacker+1);
-            strcpy(msg_d.text, temp);
-            msg_d.add_info = 3;
-            sem_p(defender.semaphore);
-            for (int i = 0; i < 3; i++){
-                (*(defender.addr)).military[i] = 0;
-            }
-            mq_send(mq[n_defender], &msg_d, 3);
-            display_message(&msg_d);
-            mq_send_status(mq[n_defender], defender.addr);
-            sem_v(defender.semaphore); 
-            if ((*(attacker.addr)).victories == 5){
-                sem_p(end_game.semaphore);
-                *(end_game.addr) = 1;
-                sem_v(end_game.semaphore);
-            }
-        }
-        else {
-            printf("Player %d defends with %f defense against %f attack\n", n_defender, defense_points, attack_points);
-            char temp[40];
-            sprintf(temp, "You lost the battle with player %d", n_defender+1);
-            strcpy(msg_a.text, temp);
-            msg_a.add_info = 3; // change it to 4 and add proper reaction in client
-            printf("%s\n", temp);
-            sem_p(attacker.semaphore);
-            for (int i = 0; i < 3; i++){
-                attacker_survivors[i] = survivors_SASO(units[i], defense_points, attack_points);
-                (*(attacker.addr)).military[i] += attacker_survivors[i];
-                printf("Survivors of player %d type %d: %d\n", n_attacker, i, attacker_survivors[i]);
-            }
-            mq_send(mq[n_attacker], &msg_a, 3); 
-            display_message(&msg_a);
-            mq_send_status(mq[n_attacker], attacker.addr);
             sem_v(attacker.semaphore);
 
-            sprintf(temp, "You defended yourself from player %d", n_attacker+1);
-            strcpy(msg_d.text, temp);
-            msg_d.add_info = 3; // change to 4
+            printf("Player %d attacks player %d\n", n_attacker, n_defender);
+            sleep(5);
+            int defenders[3]; // defender's units
+            double attack_points = 0.0, defense_points = 0.0;
             sem_p(defender.semaphore);
             for (int i = 0; i < 3; i++){
-                defender_survivors[i] = survivors_SASO(defenders[i], attack_points, defense_points);
-                (*(defender.addr)).military[i] += defender_survivors[i];
-                printf("Survivors of player %d type %d: %d\n", n_defender, i, defender_survivors[i]);
+                defenders[i] = (*(defender.addr)).military[i];
             }
-            mq_send(mq[n_defender], &msg_d, 3);
-            display_message(&msg_d);
-            mq_send_status(mq[n_defender], defender.addr);
-            sem_v(defender.semaphore); 
+            sem_v(defender.semaphore);
+            for (int i = 0; i < 3; i++){
+                attack_points += G_units_stats.attack[i] * units[i]; // unit attack points * number of units of that type
+            }
+            for (int i = 0; i < 3; i++){
+                defense_points += G_units_stats.defense[i] * defenders[i]; // unit defense points * number of units of that type
+            }
             
-        }
+            
+            int attacker_survivors[3], defender_survivors[3];
+            message msg_a, msg_d;
+
+            if (attack_points > defense_points){ // attack is successful
+                printf("Player %d wins with %f attack against %f defense\n", n_attacker, attack_points, defense_points);
+                char temp[40]; 
+                sprintf(temp, "You won the battle with player %d", n_defender+1);
+                strcpy(msg_a.text, temp);
+                msg_a.add_info = 3;
+                sem_p(attacker.semaphore);
+                for (int i = 0; i < 3; i++){
+                    attacker_survivors[i] = survivors_SASO(units[i], defense_points, attack_points);
+                    (*(attacker.addr)).military[i] += attacker_survivors[i];
+                    printf("Survivors of player %d type %d: %d\n", n_attacker, i, attacker_survivors[i]);
+                }
+                mq_send(mq[n_attacker], &msg_a, 3);
+                (*(attacker.addr)).victories++;
+                mq_send_status(mq[n_attacker], attacker.addr); 
+                sem_v(attacker.semaphore);
+                
+                sprintf(temp, "You lost the battle with player %d", n_attacker+1);
+                strcpy(msg_d.text, temp);
+                msg_d.add_info = 3;
+                sem_p(defender.semaphore);
+                for (int i = 0; i < 3; i++){
+                    (*(defender.addr)).military[i] = 0;
+                }
+                mq_send(mq[n_defender], &msg_d, 3);
+                mq_send_status(mq[n_defender], defender.addr);
+                sem_v(defender.semaphore); 
+                if ((*(attacker.addr)).victories == 5){
+                    sem_p(end_game.semaphore);
+                    *(end_game.addr) = 1;
+                    sem_v(end_game.semaphore);
+                }
+            }
+            else {
+                printf("Player %d defends with %f defense against %f attack\n", n_defender, defense_points, attack_points);
+                char temp[40];
+                sprintf(temp, "You lost the battle with player %d", n_defender+1);
+                strcpy(msg_a.text, temp);
+                msg_a.add_info = 3; 
+                sem_p(attacker.semaphore);
+                for (int i = 0; i < 3; i++){
+                    attacker_survivors[i] = survivors_SASO(units[i], defense_points, attack_points);
+                    (*(attacker.addr)).military[i] += attacker_survivors[i];
+                    printf("Survivors of player %d type %d: %d\n", n_attacker, i, attacker_survivors[i]);
+                }
+                mq_send(mq[n_attacker], &msg_a, 3); 
+                display_message(&msg_a);
+                mq_send_status(mq[n_attacker], attacker.addr);
+                sem_v(attacker.semaphore);
+
+                sprintf(temp, "You defended yourself from player %d", n_attacker+1);
+                strcpy(msg_d.text, temp);
+                msg_d.add_info = 3; // change to 4
+                sem_p(defender.semaphore);
+                for (int i = 0; i < 3; i++){
+                    defender_survivors[i] = survivors_SASO(defenders[i], attack_points, defense_points);
+                    (*(defender.addr)).military[i] += defender_survivors[i];
+                    printf("Survivors of player %d type %d: %d\n", n_defender, i, defender_survivors[i]);
+                }
+                mq_send(mq[n_defender], &msg_d, 3);
+                display_message(&msg_d);
+                mq_send_status(mq[n_defender], defender.addr);
+                sem_v(defender.semaphore); 
+                
+            }
         }
         exit(0);
     }
@@ -340,11 +338,9 @@ void get_input(int mq, shm play, int mq_output, shm players[], int mqs[], shm_in
         printf("msg.action: %c\n", msg.action);
         switch(msg.action) {
             case 't':
-                printf("Get_input: got message 't'.\n");
                 train_units(msg.unit_number, play, mq_output);
                 break;
             case 'a':
-                printf("Attack!\n");
                 fight(players[(*(play.addr)).n - 1], players[msg.add_info - 1], msg.unit_number, mqs, end_game);
                 break;
             case 'q':
@@ -362,11 +358,11 @@ void got_signal(){
     printf("Got SIGINT, goodbye cruel world.\n");
 }
 
-
 int main()
 {   
     interrupt = 0;
     signal(SIGINT, got_signal);
+
     /* initialize training_in_process with semaphores */
     training_in_process.id = shm_create(sizeof(int));
     training_in_process.addr = shm_attach(training_in_process.id);
@@ -385,11 +381,8 @@ int main()
         shm_players_init(players[i].addr, i);           // initialize players' structures
     }
 
-    
-    
     int ppid; 
     ppid = getpid(); // main server process' pid
-
 
     /* initialize all_ready and its semaphore */
     shm_int all_ready;
@@ -399,7 +392,6 @@ int main()
     all_ready.semaphore = sem_create2();
     sem_initialize(all_ready.semaphore);
 
-
     /* initialize end_game and its semaphore */
     shm_int end_game;
     end_game.id = shm_create3(sizeof(int), 1945);
@@ -408,11 +400,9 @@ int main()
     end_game.semaphore = sem_create2();
     sem_initialize(end_game.semaphore);
 
-    
     /* initialize message queue to communicate with child processes */
     int mq0;
     mq0 = mq_create();
-
 
     /* initialize message queues and processes for communication with players */
     int pid[3];          // server processes dedicated for players
@@ -454,7 +444,7 @@ int main()
     message init_message = {-1, -1, -1, 1, "", ' '};
     for (int i = 0; i < 6; i++) //send six messages for two processes of every player
         mq_send(mq0, &init_message, 1);
-    } //every process should wait for its dedicated message!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    } 
 
     message start_game;
 
@@ -518,21 +508,15 @@ int main()
             sleep(1);
         }
         
-        //sleep(100);
         /* delete all the trash from system */
-        //*(end_game.addr) = 1;
         printf("Waiting for children to end.\n");
         for (int i = 0; i < 6; i++){
             wait(NULL);
         }
-        sleep(2);
+        sleep(3);
         remove_trash(players, all_ready, end_game, mq0, mq, mq_input);
         printf("Trash removed successfully.\n");
     }
-    
 
-    
-
-    //sleep(5);
     exit(0);
 }
