@@ -280,6 +280,7 @@ int main(int argv, char **args)
         if ((mq_receive_status2(mq, &temp, IPC_NOWAIT)) != -1){ // check for player struct messages (type 7)
             me = temp; // don't touch 'me', if there are no messages
             display_info_curses(window1, lines, cols, &me);
+            display_communication(window2, lines, cols);
         }
         input = getch();    
         if (input != ERR){ // if a char is caught
@@ -287,9 +288,9 @@ int main(int argv, char **args)
             main_menu(window2, input, lines-16, cols, &input_msg, mq_input);
             
         }
+        
         display_info_curses(window1, lines, cols, &me);
         display_unit_info(window1, lines, cols);
-        clear_message(&input_msg);
         
         
         //wrefresh(window3);
