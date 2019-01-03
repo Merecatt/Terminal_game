@@ -193,6 +193,7 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
         // take units from defender too?
 
         printf("Player %d attacks player %d\n", n_attacker, n_defender);
+        sleep(5);
         int defenders[3]; // defender's units
         double attack_points = 0.0, defense_points = 0.0;
         sem_p(defender.semaphore);
@@ -206,7 +207,7 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
         for (int i = 0; i < 3; i++){
             defense_points += G_units_stats.defense[i] * defenders[i]; // unit defense points * number of units of that type
         }
-        sleep(5);
+        
         
         int attacker_survivors[3], defender_survivors[3];
         message msg_a, msg_d;
