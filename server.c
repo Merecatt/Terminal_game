@@ -29,6 +29,8 @@ units_stats G_units_stats = {{100, 250, 550, 150},
 
 int interrupt;
 
+shm_int training_in_process;
+
 void update_resources(int mq, player *play, int semaphore){
     printf("Updating resources.\n");
     sleep(1);
@@ -57,6 +59,10 @@ void remove_trash(shm players[], shm_int all_ready, shm_int end_game, int mq0, i
         shm_detach(end_game.addr);
         shm_remove(end_game.id);
         sem_remove(end_game.semaphore);
+        printf("Removing training_in_process.\n");
+        shm_detach(training_in_process.addr);
+        shm_remove(training_in_process.id);
+        sem_remove(training_in_process.semaphore);
 
         /* message queues */
         printf("Removing message queues.\n");
@@ -120,24 +126,39 @@ void train_units(int units[], shm play, int mq_output){
         mq_send(mq_output, &msg, 3);
     }
     else {
-        (*(play.addr)).resources -= cost;
-        sem_v(play.semaphore);
-        if (fork() == 0){
-            for (int i = 0; i < 4; i++){
-                printf("Training %d units of %d type.\n", units[i], i);
-                if (units[i] != 0){
-                    unit = i; // this is the unit to train
+        sem_p(training_in_process.semaphore);
+        if (*(training_in_process.addr) == 1) {
+            sem_v(play.semaphore);
+            sem_v(training_in_process.semaphore);
+            message msg;
+            msg.add_info = 3;
+            strcpy(msg.text, "Previous training not finished.");
+            mq_send(mq_output, &msg, 3);
+        }
+        else {
+            *(training_in_process.addr) = 1;
+            sem_v(training_in_process.semaphore);
+            (*(play.addr)).resources -= cost;
+            sem_v(play.semaphore);
+            if (fork() == 0){
+                for (int i = 0; i < 4; i++){
+                    printf("Training %d units of %d type.\n", units[i], i);
+                    if (units[i] != 0){
+                        unit = i; // this is the unit to train
+                    }
                 }
+
+                while (units[unit] > 0){
+                add_unit(&play, unit);
+                mq_send_status(mq_output, (play.addr));
+                units[unit]--;
+                }
+                sem_p(training_in_process.semaphore);
+                *(training_in_process.addr) = 0;
+                sem_v(training_in_process.semaphore);
+                exit(0);
+
             }
-
-            while (units[unit] > 0){
-            add_unit(&play, unit);
-            mq_send_status(mq_output, (play.addr));
-            units[unit]--;
-            }
-
-
-            exit(0);
         }
     }
 }
@@ -342,6 +363,13 @@ int main()
 {   
     interrupt = 0;
     signal(SIGINT, got_signal);
+    /* initialize training_in_process with semaphores */
+    training_in_process.id = shm_create(sizeof(int));
+    training_in_process.addr = shm_attach(training_in_process.id);
+    *(training_in_process.addr) = 0;
+    training_in_process.semaphore = sem_create2();
+    sem_initialize(training_in_process.semaphore);
+
     /* initialize players' structures with semaphores and shared memory */
     shm players[3];
     
