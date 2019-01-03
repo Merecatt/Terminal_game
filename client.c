@@ -31,11 +31,16 @@ void initialize_curses(int *lines, int *cols){
 void display_info_curses (WINDOW *win, int lines, int cols, player *play){
     mvwprintw(win, 0, (cols-20)/2, "----- Player %d -----", play->n);
     mvwprintw(win, 1, (cols-12)/2, "Victories: %d", play->victories);
+    mvwprintw(win, 2, 1, "Resources:              ");
     mvwprintw(win, 2, 1, "Resources: %d", play->resources);
     mvwprintw(win, 3, 1, "Resources increase speed: %d", play->resources_increase);
+    mvwprintw(win, 4, 1, "Workers:              ");
     mvwprintw(win, 4, 1, "Workers: %d", play->workers);
+    mvwprintw(win, 2, cols/2, "Light infantry:               ");
     mvwprintw(win, 2, cols/2, "Light infantry: %d", play->military[0]);
+    mvwprintw(win, 3, cols/2, "Heavy infantry:               ");
     mvwprintw(win, 3, cols/2, "Heavy infantry: %d", play->military[1]);
+    mvwprintw(win, 4, cols/2, "Cavalry:                     ");
     mvwprintw(win, 4, cols/2, "Cavalry: %d", play->military[2]);
     wrefresh(win);  
 }
