@@ -114,62 +114,80 @@ void train_units(int units[], shm play, int mq_output){
     int n = (*(play.addr)).n - 1;
     int cost = 0;
     int unit;
+    int index = -1;
+    message msg;
     for (int i = 0; i < 4; i++){
-        cost += G_units_stats.price[i] * units[i];
+        if (units[i] != 0){
+            index = i;
+        }
     }
-    printf("Cost: %d\n", cost);
-    sem_p(play.semaphore);
-    int p_resources = (*(play.addr)).resources;
-    if (p_resources < cost){
-        sem_v(play.semaphore);
-        message msg;
-        msg.add_info = 3; // tell client to print the message
-        strcpy(msg.text, "Not enough resources.");
+    if (index == -1){
+        msg.add_info = 3;
+        strcpy(msg.text, "You order to train no units.");
+        mq_send(mq_output, &msg, 3);
+    }
+    else if (units[index] > 9 || units[index] < 0){
+        msg.add_info = 3;
+        strcpy(msg.text, "Incorrect number of units.");
         mq_send(mq_output, &msg, 3);
     }
     else {
-        sem_p(training_in_process[n].semaphore);
-        if (*(training_in_process[n].addr) == 1) {
+        for (int i = 0; i < 4; i++){
+            cost += G_units_stats.price[i] * units[i];
+        }
+        printf("Cost: %d\n", cost);
+        sem_p(play.semaphore);
+        int p_resources = (*(play.addr)).resources;
+        if (p_resources < cost){
             sem_v(play.semaphore);
-            sem_v(training_in_process[n].semaphore);
-            message msg;
-            msg.add_info = 3;
-            strcpy(msg.text, "Previous training not finished.");
+            msg.add_info = 3; // tell client to print the message
+            strcpy(msg.text, "Not enough resources.");
             mq_send(mq_output, &msg, 3);
         }
         else {
-            *(training_in_process[n].addr) = 1;
-            sem_v(training_in_process[n].semaphore);
-            (*(play.addr)).resources -= cost;
-            sem_v(play.semaphore);
-            message msg;
-            msg.add_info = 3;
-            char temp[60];
-            
-            if (fork() == 0){
-                for (int i = 0; i < 4; i++){
-                    printf("Training %d units of %d type.\n", units[i], i);
-                    if (units[i] != 0){
-                        unit = i; // this is the unit to train
-                        sprintf(temp, "Training %d units of %d type in progress.", units[i], i);
-                    }
-                }
-                strcpy(msg.text, temp);
-                mq_send(mq_output, &msg, 3);
-                
-                while (units[unit] > 0){
-                add_unit(&play, unit);
-                mq_send_status(mq_output, (play.addr));
-                units[unit]--;
-                }
-                sem_p(training_in_process[n].semaphore);
-                *(training_in_process[n].addr) = 0;
+            sem_p(training_in_process[n].semaphore);
+            if (*(training_in_process[n].addr) == 1) {
+                sem_v(play.semaphore);
                 sem_v(training_in_process[n].semaphore);
+                message msg;
                 msg.add_info = 3;
-                strcpy(msg.text, "Training finished.");
+                strcpy(msg.text, "Previous training not finished.");
                 mq_send(mq_output, &msg, 3);
-                exit(0);
+            }
+            else {
+                *(training_in_process[n].addr) = 1;
+                sem_v(training_in_process[n].semaphore);
+                (*(play.addr)).resources -= cost;
+                sem_v(play.semaphore);
+                message msg;
+                msg.add_info = 3;
+                char temp[60];
+                
+                if (fork() == 0){
+                    for (int i = 0; i < 4; i++){
+                        printf("Training %d units of %d type.\n", units[i], i);
+                        if (units[i] != 0){
+                            unit = i; // this is the unit to train
+                            sprintf(temp, "Training %d units of %d type in progress.", units[i], i);
+                        }
+                    }
+                    strcpy(msg.text, temp);
+                    mq_send(mq_output, &msg, 3);
+                    
+                    while (units[unit] > 0){
+                    add_unit(&play, unit);
+                    mq_send_status(mq_output, (play.addr));
+                    units[unit]--;
+                    }
+                    sem_p(training_in_process[n].semaphore);
+                    *(training_in_process[n].addr) = 0;
+                    sem_v(training_in_process[n].semaphore);
+                    msg.add_info = 3;
+                    strcpy(msg.text, "Training finished.");
+                    mq_send(mq_output, &msg, 3);
+                    exit(0);
 
+                }
             }
         }
     }

@@ -127,7 +127,7 @@ void initialize_answers(){
     current_answer = 0;
 }
 
-void got_train(WINDOW* win, message *msg, int qid){
+void got_train(WINDOW* win, WINDOW *win2, message *msg, int qid){
     int temp;
     switch(current_answer){
         case 1:
@@ -158,10 +158,19 @@ void got_train(WINDOW* win, message *msg, int qid){
                     strcpy(unit_name, "workers");
                     break;
                 default: 
-                    strcpy(unit_name, "something incorrect");
+                    strcpy(msg->text, "You chose to train something incorrect");
+                    msg->add_info = 3;
+                    display_server_message(win2, msg);
+                    initialize_answers();
             }
-            mvwprintw(win, 0, 1, "You chose to train %s", unit_name);
-            mvwprintw(win, 1, 1, "How many of them would you like to train?");
+            
+            if (current_answer == 2){
+                mvwprintw(win, 0, 1, "You chose to train %s", unit_name);
+                mvwprintw(win, 1, 1, "How many of them would you like to train?");
+            }
+            else {
+                display_communication(win);
+            }   
             wrefresh(win);
             break;
         case 3:
@@ -236,7 +245,7 @@ void got_attack(WINDOW *win, WINDOW *win2, message *msg, int qid){
 void got_input(WINDOW *win2, WINDOW *win3, message *msg, int qid){
     switch(answers[0]){
         case 't':
-            got_train(win2, msg, qid);
+            got_train(win2, win3, msg, qid);
             break;
         case 'a':
             got_attack(win2, win3, msg, qid);
