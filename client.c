@@ -196,6 +196,29 @@ void got_train(WINDOW* win, WINDOW *win2, message *msg, int qid){
     }
 }
 
+int incorrect_unit_number (int number, message *msg, WINDOW *win, WINDOW *win1){
+    if (number < 0 || number > 9){
+        msg->add_info = 3;
+        strcpy(msg->text, "Incorrect number of units");
+        display_server_message(win, msg);
+        initialize_answers();
+        display_communication(win1);
+        return -1;
+    }
+    return 0;
+}
+
+int incorrect_player_number (int number, message *msg, WINDOW *win){
+    if (number < 1 || number > 3){
+        msg->add_info = 3;
+        strcpy(msg->text, "Incorrect player number");
+        display_server_message(win, msg);
+        initialize_answers();
+        return -1;
+    }
+    return 0;
+}
+
 void got_attack(WINDOW *win, WINDOW *win2, message *msg, int qid){
     switch (current_answer){
         case 1:
@@ -207,33 +230,41 @@ void got_attack(WINDOW *win, WINDOW *win2, message *msg, int qid){
             break;
         case 2:
             msg->unit_number[0] = answers[1] - '0';
-            mvwprintw(win, 1, 17, "%d", msg->unit_number[0]);
-            mvwprintw(win, 2, 1, "Heavy infantry: ");
-            wrefresh(win);
+            if (incorrect_unit_number(msg->unit_number[0], msg, win2, win) == 0){
+                mvwprintw(win, 1, 17, "%d", msg->unit_number[0]);
+                mvwprintw(win, 2, 1, "Heavy infantry: ");
+                wrefresh(win);
+            }
             break;
         case 3:
             msg->unit_number[1] = answers[2] - '0';
-            mvwprintw(win, 2, 17, "%d", msg->unit_number[1]);
-            mvwprintw(win, 3, 1, "Cavalry: ");
-            wrefresh(win);
+            if (incorrect_unit_number(msg->unit_number[1], msg, win2, win) == 0){
+                mvwprintw(win, 2, 17, "%d", msg->unit_number[1]);
+                mvwprintw(win, 3, 1, "Cavalry: ");
+                wrefresh(win);
+            }
             break;
         case 4:
             msg->unit_number[2] = answers[3] - '0';
-            mvwprintw(win, 3, 10, "%d", msg->unit_number[2]);
-            mvwprintw(win, 4, 1, "Who would you like to attack? Type the proper number.");
-            wrefresh(win);
+            if (incorrect_unit_number(msg->unit_number[2], msg, win2, win) == 0){
+                mvwprintw(win, 3, 10, "%d", msg->unit_number[2]);
+                mvwprintw(win, 4, 1, "Who would you like to attack? Type the proper number.");
+                wrefresh(win);
+            }
             break;
         case 5:
             msg->add_info = answers[4] - '0';
             wclear(win);
-            wclear(win2);
+            wclear(win2);   
             display_communication(win);
-            mvwprintw(win2, 0, 1, "Tremble and despair, player %d! Doom has come to your world!", msg->add_info);
+            if (incorrect_player_number(msg->add_info, msg, win2) == 0){
+                mvwprintw(win2, 0, 1, "Tremble and despair, player %d! Doom has come to your world!", msg->add_info);
+                mq_send(qid, msg, 3);
+                clear_message(msg);
+                initialize_answers();
+            }
             wrefresh(win);
             wrefresh(win2);
-            mq_send(qid, msg, 3);
-            clear_message(msg);
-            initialize_answers();
             break;
         default:
             wclear(win2);
