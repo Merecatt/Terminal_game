@@ -30,7 +30,7 @@ Moreover, every fight and training triggers new process.
     char action;
     int unit_type;
     int unit_number[4];
-}message;```
+}message;```    
   
 
     * type:
@@ -43,7 +43,7 @@ Moreover, every fight and training triggers new process.
     /* Redefined msgbuf stuct */
     long mtype; 
     message msg;
-};```
+};```    
 
   
 * player structs 
@@ -67,13 +67,13 @@ player - struct containing basic information about player
     int resources_increase; 
     int resources;
     int victories;
-}player;```
+}player;```    
 
 ```struct mq_player_buf {
     /* Redefined msgbuf struct */
     long mtype;
     player play;
-};```
+};```    
   
 
 ### Queues:
@@ -95,7 +95,7 @@ There are two types of data kept in shared memory:
     int id;
     int *addr;
     int semaphore;
-}shm_int;```
+}shm_int;```    
     * addr - pointer to integer
     * id - shared memory id
     * semaphore - semaphore related to this shared memory segment
@@ -104,7 +104,7 @@ There are two types of data kept in shared memory:
     int id;
     player *addr;
     int semaphore;
-}shm;```
+}shm;```    
     * addr - pointer to player struct
     * id - shared memory id
     * semaphore - semaphore related to this shared memory segment
