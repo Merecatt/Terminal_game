@@ -7,7 +7,6 @@
 #./client 2
 # -----
 
-clear
 gcc -Wall server.c -o server
 printf "Server compiled\n"
 gcc -Wall client.c -o client -lncurses
