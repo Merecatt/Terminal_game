@@ -20,7 +20,7 @@ Moreover, every fight and training triggers new process.
     * unit_type - type of unit (needed to send information about training)
     * unit_number[4] - number of units of all types (needed to send information about training or fight)
 
-'typedef struct {
+```typedef struct {
     /* Message struct */
     int winner; 
     int your_units; 
@@ -30,18 +30,18 @@ Moreover, every fight and training triggers new process.
     char action;
     int unit_type;
     int unit_number[4];
-}message;'
+}message;```
 
     * type:
         * type == 7 means this message is game status (player info)
         * type == 1 means this is initial message
         * type == 3 means other info, e. g. battle info (player to attack)
 
-'struct mq_buf {
+```struct mq_buf {
     /* Redefined msgbuf stuct */
     long mtype; 
     message msg;
-};'
+};```
 
 * player structs 
 player - struct containing basic information about player
@@ -55,7 +55,7 @@ player - struct containing basic information about player
     * resources - number of resources
     * victories - number of won battles
 
-'typedef struct {
+```typedef struct {
     /* Player information struct. */
     int n;
     int military[3];
@@ -63,13 +63,13 @@ player - struct containing basic information about player
     int resources_increase; 
     int resources;
     int victories;
-}player;'
+}player;```
 
-'struct mq_player_buf {
+```struct mq_player_buf {
     /* Redefined msgbuf struct */
     long mtype;
     player play;
-};'
+};```
 
 ### Queues:
 * mq0 - queue between server components
@@ -86,20 +86,20 @@ player - struct containing basic information about player
 ### Types
 There are two types of data kept in shared memory:
 * shm_int - integer with related data
-'typedef struct {
+```typedef struct {
     int id;
     int *addr;
     int semaphore;
-}shm_int;'
+}shm_int;```
     * addr - pointer to integer
     * id - shared memory id
     * semaphore - semaphore related to this shared memory segment
 * shm - type player with related data
-'typedef struct {
+```typedef struct {
     int id;
     player *addr;
     int semaphore;
-}shm;'
+}shm;```
     * addr - pointer to player struct
     * id - shared memory id
     * semaphore - semaphore related to this shared memory segment
