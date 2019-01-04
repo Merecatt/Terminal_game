@@ -323,6 +323,8 @@ int main(int argv, char **args)
     window2 = newwin((lines-16), cols, 14, 0);
     window3 = newwin(2, cols, lines-1, 0);
 
+    curs_set(0); // delete this line if your terminal doesn't support invisible cursor
+
     display_unit_info(window1, lines, cols);
     display_info_curses(window1, lines, cols, &me);
     display_communication(window2);
