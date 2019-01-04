@@ -334,7 +334,6 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
                         printf("Survivors of player %d type %d: %d\n", n_attacker, i, attacker_survivors[i]);
                     }
                     mq_send(mq[n_attacker], &msg_a, 3); 
-                    display_message(&msg_a);
                     mq_send_status(mq[n_attacker], attacker.addr);
                     sem_v(attacker.semaphore);
 
@@ -348,7 +347,6 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
                         printf("Survivors of player %d type %d: %d\n", n_defender, i, defender_survivors[i]);
                     }
                     mq_send(mq[n_defender], &msg_d, 3);
-                    display_message(&msg_d);
                     mq_send_status(mq[n_defender], defender.addr);
                     sem_v(defender.semaphore); 
                     
