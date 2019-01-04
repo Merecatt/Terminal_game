@@ -108,6 +108,7 @@ typedef struct {
     * addr - pointer to player struct
     * id - shared memory id
     * semaphore - semaphore related to this shared memory segment
+
 3.2 Defined shared memory segments
 - shm_int training_in_process[3] - array of shm_int for every player
     * if *(training_in_process[i].addr) == 0, player has no active training process
