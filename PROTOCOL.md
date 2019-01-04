@@ -31,11 +31,13 @@ Moreover, every fight and training triggers new process.
     int unit_type;
     int unit_number[4];
 }message;```
+  
 
     * type:
         * type == 7 means this message is game status (player info)
         * type == 1 means this is initial message
         * type == 3 means other info, e. g. battle info (player to attack)
+
 
 ```struct mq_buf {
     /* Redefined msgbuf stuct */
@@ -43,6 +45,7 @@ Moreover, every fight and training triggers new process.
     message msg;
 };```
 
+  
 * player structs 
 player - struct containing basic information about player
     * n - identifier of player in notation {1, 2, 3}
@@ -54,6 +57,7 @@ player - struct containing basic information about player
     * resources_increase - resources increase speed per 1 second (it is increased automatically after training workers)
     * resources - number of resources
     * victories - number of won battles
+  
 
 ```typedef struct {
     /* Player information struct. */
@@ -70,6 +74,7 @@ player - struct containing basic information about player
     long mtype;
     player play;
 };```
+  
 
 ### Queues:
 * mq0 - queue between server components
