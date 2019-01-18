@@ -374,6 +374,7 @@ void get_input(int mq, shm play, int mq_output, shm players[], int mqs[], shm_in
                 sem_p(end_game.semaphore);
                 *(end_game.addr) = 1;
                 sem_v(end_game.semaphore);
+                break;
             default:
                 printf("Player sent illegal message.\n");
         }
@@ -517,7 +518,6 @@ int main()
             mq_receive(mq0, &start_game, 1); // wait for the initial message
             if (start_game.add_info == 1){ // if you got the initial message
                 while (*(end_game.addr) != 1){
-                    // TODO
                     get_input(mq_input[i], players[i], mq[i], players, mq, end_game);
                 }
                 printf("Input process %d finishes.\n", i);
