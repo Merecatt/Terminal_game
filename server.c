@@ -29,7 +29,8 @@ units_stats G_units_stats = {{100, 250, 550, 150},
 
 int interrupt;
 
-shm_int training_in_process[3];
+int train_mq;
+int train_pid[3];
 
 void update_resources(int mq, player *play, int semaphore){
     printf("Updating resources.\n");
@@ -41,39 +42,35 @@ void update_resources(int mq, player *play, int semaphore){
 }
 
 void remove_trash(shm players[], shm_int all_ready, shm_int end_game, int mq0, int mq[], int mq_input[]){
-        /* Function removing created IPCs from the system */
-        /* players' shared memory and semaphores */
-        printf("Removing players' structures.\n");
-        for (int i = 0; i < 3; i++){
-            shm_detach(players[i].addr);
-            shm_remove(players[i].id);
-            sem_remove(players[i].semaphore);
-        }
-
-        /* all_ready and end_game shared memory and semaphores */
-        printf("Removing all_ready.\n");
-        shm_detach(all_ready.addr);
-        shm_remove(all_ready.id);
-        sem_remove(all_ready.semaphore);
-        printf("Removing end_game.\n");
-        shm_detach(end_game.addr);
-        shm_remove(end_game.id);
-        sem_remove(end_game.semaphore);
-        printf("Removing training_in_process.\n");
-        for (int i = 0; i < 3; i++){
-            shm_detach(training_in_process[i].addr);
-            shm_remove(training_in_process[i].id);
-            sem_remove(training_in_process[i].semaphore);
-        }
-
-        /* message queues */
-        printf("Removing message queues.\n");
-        mq_remove(mq0);
-        for (int i = 0; i < 3; i++){
-            mq_remove(mq[i]);
-            mq_remove(mq_input[i]);
-        }
+    /* Function removing created IPCs from the system */
+    /* players' shared memory and semaphores */
+    printf("Removing players' structures.\n");
+    for (int i = 0; i < 3; i++){
+        shm_detach(players[i].addr);
+        shm_remove(players[i].id);
+        sem_remove(players[i].semaphore);
     }
+
+    /* all_ready and end_game shared memory and semaphores */
+    printf("Removing all_ready.\n");
+    shm_detach(all_ready.addr);
+    shm_remove(all_ready.id);
+    sem_remove(all_ready.semaphore);
+    printf("Removing end_game.\n");
+    shm_detach(end_game.addr);
+    shm_remove(end_game.id);
+    sem_remove(end_game.semaphore);
+
+    /* message queues */
+    printf("Removing message queues.\n");
+    mq_remove(mq0);
+    printf("Removing train_mq.\n");
+    mq_remove(train_mq);
+    for (int i = 0; i < 3; i++){
+        mq_remove(mq[i]);
+        mq_remove(mq_input[i]);
+    }
+}
 
 int winner(shm players[]){
     /* Function returning id of the winner (in {0, 1, 2} notation). 
@@ -87,8 +84,13 @@ int winner(shm players[]){
     return -1;
 }
 
-void add_unit(shm *player, int unit){
+void add_unit(shm *player, int unit, shm_int end_game){
+    /* Function adding single unit during training */
     sleep(G_units_stats.production_time[unit]);
+    if (*(end_game.addr) == 1){
+        printf("Training process number %d interrupted by end of the game.\n", (*(player->addr)).n-1);
+        exit(0);
+    }
     sem_p(player->semaphore);
     switch(unit){
         case 0:
@@ -108,89 +110,6 @@ void add_unit(shm *player, int unit){
             printf("Error while training.\n");
     }
     sem_v(player->semaphore);
-}
-
-void train_units(int units[], shm play, int mq_output){
-    int n = (*(play.addr)).n - 1;
-    int cost = 0;
-    int unit;
-    int index = -1;
-    message msg;
-    for (int i = 0; i < 4; i++){
-        if (units[i] != 0){
-            index = i;
-        }
-    }
-    if (index == -1){
-        msg.add_info = 3;
-        strcpy(msg.text, "You order to train no units.");
-        mq_send(mq_output, &msg, 3);
-    }
-    else if (units[index] > 9 || units[index] < 0){
-        msg.add_info = 3;
-        strcpy(msg.text, "Incorrect number of units.");
-        mq_send(mq_output, &msg, 3);
-    }
-    else {
-        for (int i = 0; i < 4; i++){
-            cost += G_units_stats.price[i] * units[i];
-        }
-        printf("Cost: %d\n", cost);
-        sem_p(play.semaphore);
-        int p_resources = (*(play.addr)).resources;
-        if (p_resources < cost){
-            sem_v(play.semaphore);
-            msg.add_info = 3; // tell client to print the message
-            strcpy(msg.text, "Not enough resources.");
-            mq_send(mq_output, &msg, 3);
-        }
-        else {
-            sem_p(training_in_process[n].semaphore);
-            if (*(training_in_process[n].addr) == 1) {
-                sem_v(play.semaphore);
-                sem_v(training_in_process[n].semaphore);
-                message msg;
-                msg.add_info = 3;
-                strcpy(msg.text, "Previous training not finished.");
-                mq_send(mq_output, &msg, 3);
-            }
-            else {
-                *(training_in_process[n].addr) = 1;
-                sem_v(training_in_process[n].semaphore);
-                (*(play.addr)).resources -= cost;
-                sem_v(play.semaphore);
-                message msg;
-                msg.add_info = 3;
-                char temp[60];
-                
-                if (fork() == 0){
-                    for (int i = 0; i < 4; i++){
-                        printf("Training %d units of %d type.\n", units[i], i);
-                        if (units[i] != 0){
-                            unit = i; // this is the unit to train
-                            sprintf(temp, "Training %d units of %d type in progress.", units[i], i);
-                        }
-                    }
-                    strcpy(msg.text, temp);
-                    mq_send(mq_output, &msg, 3);
-                    
-                    while (units[unit] > 0){
-                    add_unit(&play, unit);
-                    mq_send_status(mq_output, (play.addr));
-                    units[unit]--;
-                    }
-                    sem_p(training_in_process[n].semaphore);
-                    *(training_in_process[n].addr) = 0;
-                    sem_v(training_in_process[n].semaphore);
-                    msg.add_info = 3;
-                    strcpy(msg.text, "Training finished.");
-                    mq_send(mq_output, &msg, 3);
-                    exit(0);
-
-                }
-            }
-        }
-    }
 }
 
 int myceil(double x){
@@ -357,6 +276,115 @@ void fight(shm attacker, shm defender, int units[], int mq[], shm_int end_game){
     }
 }
 
+void assign_units (int *units, int *units2){
+    for (int i = 0; i < 4; i++){
+        units[i] = units2[i];
+    }
+}
+
+void clear_message (message *msg){
+    msg->add_info = -1;
+    strcpy(msg->text, "");
+    msg->unit_type = -1;
+}
+
+void train_units (int parent_pid, shm play, int mq_output, shm_int end_game){
+    /* Function creating and maintaining training process.
+    It is called only once (for each player) at the beginning, creates training process
+    and triggers training for consecutive orders in the training queue. */
+    int n = (*(play.addr)).n - 1;
+    printf("Training process for player %d is started.\n", n);
+    message msg;
+    char temp[60];
+    int unit_index;
+    int units[4];
+    while (*(end_game.addr) != 1){
+        mq_receive(train_mq, &msg, n+1);
+        unit_index = msg.unit_type;
+        assign_units(units, msg.unit_number);
+        sprintf(temp, "Training %d units of %d type in progress.", units[unit_index], unit_index);
+        printf("%s\n", temp);
+        msg.add_info = 3;
+        strcpy(msg.text, temp);
+        mq_send(mq_output, &msg, 3);
+
+        while (units[unit_index] > 0){
+            add_unit(&play, unit_index, end_game);
+            mq_send_status(mq_output, (play.addr));
+            units[unit_index]--;
+        }
+        msg.add_info = 3;
+        strcpy(msg.text, "Training finished.");
+        mq_send(mq_output, &msg, 3);
+        if (*(end_game.addr) == 1){
+            printf("Training process of player %d finishes.", n);
+            exit(0);
+            break;
+        }
+    }
+    printf("Training process of player %d finishes.", n);
+    exit(0);
+}
+
+void got_train_order (int units[], shm play, int mq_output){
+    /* Function checking train order and queuing it if it's valid */
+    int n = (*(play.addr)).n - 1;
+    int cost = 0;
+    int unit;
+    int index = -1;
+    message msg;
+    for (int i = 0; i < 4; i++){
+        if (units[i] != 0){
+            index = i;
+        }
+    }
+    if (index == -1){
+        msg.add_info = 3;
+        strcpy(msg.text, "You order to train no units.");
+        mq_send(mq_output, &msg, 3);
+    }
+    else if (units[index] > 9 || units[index] < 0){
+        msg.add_info = 3;
+        strcpy(msg.text, "Incorrect number of units.");
+        mq_send(mq_output, &msg, 3);
+    }
+    else {
+        for (int i = 0; i < 4; i++){
+            cost += G_units_stats.price[i] * units[i];
+        }
+        printf("Cost: %d\n", cost);
+        sem_p(play.semaphore);
+        int p_resources = (*(play.addr)).resources;
+        if (p_resources < cost){
+            sem_v(play.semaphore);
+            msg.add_info = 3; // tell client to print the message
+            strcpy(msg.text, "Not enough resources.");
+            mq_send(mq_output, &msg, 3);
+        }
+        else {
+            (*(play.addr)).resources -= cost;
+            sem_v(play.semaphore);
+            message msg;
+            msg.add_info = 3;
+            char temp[60];
+
+            for (int i = 0; i < 4; i++){
+                if (units[i] != 0){
+                    unit = i; // this is the unit to train
+                    sprintf(temp, "You ordered to train %d units of %d type.", units[i], i);
+                    break;
+                }
+            }
+            strcpy(msg.text, temp);
+            mq_send(mq_output, &msg, 3);
+            assign_units(msg.unit_number, units);
+            msg.unit_type = unit;
+            mq_send(train_mq, &msg, n+1);
+            printf("Training %d units of type %d for player %d queued.\n", units[unit], unit, n);
+        }
+    }
+}
+
 void get_input(int mq, shm play, int mq_output, shm players[], int mqs[], shm_int end_game){
     int status;
     message msg;
@@ -365,7 +393,7 @@ void get_input(int mq, shm play, int mq_output, shm players[], int mqs[], shm_in
         printf("msg.action: %c\n", msg.action);
         switch(msg.action) {
             case 't':
-                train_units(msg.unit_number, play, mq_output);
+                got_train_order(msg.unit_number, play, mq_output);
                 break;
             case 'a':
                 fight(players[(*(play.addr)).n - 1], players[msg.add_info - 1], msg.unit_number, mqs, end_game);
@@ -390,16 +418,6 @@ int main()
 {   
     interrupt = 0;
     signal(SIGINT, got_signal);
-
-    /* initialize training_in_process with semaphores */
-    for (int i = 0; i < 3; i++){
-        training_in_process[i].id = shm_create(sizeof(int));
-        training_in_process[i].addr = shm_attach(training_in_process[i].id);
-        *(training_in_process[i].addr) = 0;
-        training_in_process[i].semaphore = sem_create2();
-        sem_initialize(training_in_process[i].semaphore);
-    }
-    
 
     /* initialize players' structures with semaphores and shared memory */
     shm players[3];
@@ -434,6 +452,8 @@ int main()
     /* initialize message queue to communicate with child processes */
     int mq0;
     mq0 = mq_create();
+    /* initialize message queue for training */
+    train_mq = mq_create();
 
     /* initialize message queues and processes for communication with players */
     int pid[3];          // server processes dedicated for players
@@ -459,6 +479,16 @@ int main()
         if (getpid() == ppid){
             if ((pid_input[i] = fork()) == -1) {
                 perror("preparing to get input - fork");
+            }
+        }
+    }
+
+    /* Prepare train processes */
+    for (int i = 0; i < 3; i++){
+        if (getpid() == ppid){
+            train_pid[i] = fork();
+            if (train_pid[i] == 0){
+                train_units(ppid, players[i], mq[i], end_game);
             }
         }
     }
