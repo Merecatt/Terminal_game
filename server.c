@@ -298,8 +298,16 @@ void train_units (int parent_pid, shm play, int mq_output, shm_int end_game){
     char temp[60];
     int unit_index;
     int units[4];
+    int success_receive;
     while (*(end_game.addr) != 1){
-        mq_receive(train_mq, &msg, n+1);
+        do {
+            success_receive = mq_receive2(train_mq, &msg, n+1, IPC_NOWAIT);
+        }
+        while (success_receive == -1 && (*(end_game.addr)) != 1);
+        if ((*(end_game.addr)) == 1){
+            printf("Training process of player %d finishes.\n", n);
+            exit(0);
+        }
         unit_index = msg.unit_type;
         assign_units(units, msg.unit_number);
         sprintf(temp, "Training %d units of %d type in progress.", units[unit_index], unit_index);
@@ -316,13 +324,8 @@ void train_units (int parent_pid, shm play, int mq_output, shm_int end_game){
         msg.add_info = 3;
         strcpy(msg.text, "Training finished.");
         mq_send(mq_output, &msg, 3);
-        if (*(end_game.addr) == 1){
-            printf("Training process of player %d finishes.", n);
-            exit(0);
-            break;
-        }
     }
-    printf("Training process of player %d finishes.", n);
+    printf("Training process of player %d finishes.\n", n);
     exit(0);
 }
 
@@ -570,7 +573,7 @@ int main()
         
         /* delete all the trash from system */
         printf("Waiting for children to end.\n");
-        for (int i = 0; i < 6; i++){
+        for (int i = 0; i < 9; i++){
             wait(NULL);
         }
         sleep(3);
